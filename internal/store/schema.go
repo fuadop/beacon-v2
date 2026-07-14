@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS devices (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ip_address TEXT NOT NULL UNIQUE,
   hostname TEXT,
-  snmp_version TEXT CHECK(snmp_version IN ('v1','v2c','v3')),
+  snmp_version TEXT CHECK(snmp_version IN ('v1','v2c','v3','')),
   community TEXT,
   v3_user TEXT,
   v3_auth_key TEXT,

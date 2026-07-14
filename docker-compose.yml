@@ -1,0 +1,86 @@
+services:
+  influxdb:
+    image: influxdb:3-core
+    restart: unless-stopped
+    command:
+      - influxdb3
+      - serve
+      - --node-id=node0
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3
+      - --http-bind=0.0.0.0:8181
+    ports:
+      - "8181:8181"
+    volumes:
+      - influxdb-data:/var/lib/influxdb3
+    env_file: .env
+
+  telegraf:
+    image: telegraf:1.32
+    restart: unless-stopped
+    # config-watcher writes the live config to this shared volume and SIGHUPs this
+    # container (via `docker exec`) whenever devices or the polling interval change.
+    volumes:
+      - telegraf-config:/etc/telegraf
+    env_file: .env
+    depends_on:
+      - influxdb
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    env_file: .env
+    depends_on:
+      - influxdb
+      - config-api
+
+  config-api:
+    build:
+      context: .
+      dockerfile: config-api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - config-db:/data
+    env_file: .env
+
+  config-watcher:
+    build:
+      context: .
+      dockerfile: config-watcher/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - config-db:/data
+      - telegraf-config:/etc/telegraf
+      # Grants this container control over the Docker daemon on the host, scoped to
+      # letting it `docker exec`/`docker restart` the telegraf service only (never
+      # used for anything else). See README's threat-model section (Phase 7).
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file: .env
+    depends_on:
+      - telegraf
+
+  trap-receiver:
+    build:
+      context: .
+      dockerfile: trap-receiver/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "162:162/udp"
+    volumes:
+      - traps-db:/data
+    env_file: .env
+
+volumes:
+  influxdb-data:
+  grafana-data:
+  config-db:
+  traps-db:
+  telegraf-config:

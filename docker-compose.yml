@@ -20,8 +20,12 @@ services:
     restart: unless-stopped
     # config-watcher writes the live config to this shared volume and SIGHUPs this
     # container (via `docker exec`) whenever devices or the polling interval change.
+    # The MIBs bind mount is required: without it, Telegraf's snmp input can't
+    # initialize inputs.snmp.table blocks at all (fails at startup, not just at
+    # poll time), even though every OID in telegraf.conf.tmpl is fully numeric.
     volumes:
       - telegraf-config:/etc/telegraf
+      - ./telegraf/mibs:/etc/telegraf/.snmp/mibs:ro
     env_file: .env
     depends_on:
       - influxdb

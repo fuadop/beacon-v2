@@ -1,0 +1,95 @@
+[agent]
+  interval = "{{.PollingIntervalSeconds}}s"
+  round_interval = true
+  metric_batch_size = 1000
+  metric_buffer_limit = 10000
+  flush_interval = "{{.PollingIntervalSeconds}}s"
+
+[[outputs.influxdb_v2]]
+  urls = ["{{.InfluxURL}}"]
+  token = "{{.InfluxToken}}"
+  organization = ""
+  bucket = "{{.InfluxDatabase}}"
+{{range .Devices}}
+[[inputs.snmp]]
+  name_override = "snmp"
+  agents = ["udp://{{.IPAddress}}:161"]
+  version = {{.VersionNumber}}
+  timeout = "5s"
+{{if eq .VersionNumber 3}}
+  sec_name = "{{.V3User}}"
+  sec_level = "{{.V3SecLevel}}"
+  auth_protocol = "{{.V3AuthProtocol}}"
+  auth_password = "{{.V3AuthPassword}}"
+  priv_protocol = "{{.V3PrivProtocol}}"
+  priv_password = "{{.V3PrivPassword}}"
+{{else}}
+  community = "{{.Community}}"
+{{end}}
+  [[inputs.snmp.field]]
+    name = "hostname"
+    oid = ".1.3.6.1.2.1.1.5.0"
+    is_tag = true
+
+  [[inputs.snmp.field]]
+    name = "uptime"
+    oid = ".1.3.6.1.2.1.1.3.0"
+
+  # IF-MIB: per-interface traffic/error counters. Universally supported by
+  # SNMP-enabled network gear, unlike the CPU/memory tables below.
+  [[inputs.snmp.table]]
+    name = "interface"
+    inherit_tags = ["hostname"]
+    oid = ".1.3.6.1.2.1.2.2"
+
+    [[inputs.snmp.table.field]]
+      name = "ifDescr"
+      oid = ".1.3.6.1.2.1.2.2.1.2"
+      is_tag = true
+
+    [[inputs.snmp.table.field]]
+      name = "ifInOctets"
+      oid = ".1.3.6.1.2.1.2.2.1.10"
+
+    [[inputs.snmp.table.field]]
+      name = "ifOutOctets"
+      oid = ".1.3.6.1.2.1.2.2.1.16"
+
+    [[inputs.snmp.table.field]]
+      name = "ifInErrors"
+      oid = ".1.3.6.1.2.1.2.2.1.14"
+
+    [[inputs.snmp.table.field]]
+      name = "ifOutErrors"
+      oid = ".1.3.6.1.2.1.2.2.1.20"
+
+  # HOST-RESOURCES-MIB: memory/CPU. Best-effort — routers/switches without an
+  # embedded host-resources agent simply won't populate these fields; Telegraf
+  # logs a per-field warning rather than failing the whole plugin.
+  [[inputs.snmp.table]]
+    name = "hrStorage"
+    inherit_tags = ["hostname"]
+    oid = ".1.3.6.1.2.1.25.2.3"
+
+    [[inputs.snmp.table.field]]
+      name = "hrStorageDescr"
+      oid = ".1.3.6.1.2.1.25.2.3.1.3"
+      is_tag = true
+
+    [[inputs.snmp.table.field]]
+      name = "hrStorageUsed"
+      oid = ".1.3.6.1.2.1.25.2.3.1.6"
+
+    [[inputs.snmp.table.field]]
+      name = "hrStorageSize"
+      oid = ".1.3.6.1.2.1.25.2.3.1.5"
+
+  [[inputs.snmp.table]]
+    name = "hrProcessor"
+    inherit_tags = ["hostname"]
+    oid = ".1.3.6.1.2.1.25.3.3"
+
+    [[inputs.snmp.table.field]]
+      name = "hrProcessorLoad"
+      oid = ".1.3.6.1.2.1.25.3.3.1.2"
+{{end}}

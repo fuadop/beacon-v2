@@ -10,4 +10,5 @@ FROM alpine:3.20
 # container (or restart it) when devices/settings change; distroless has no shell/CLI.
 RUN apk add --no-cache docker-cli
 COPY --from=build /out/config-watcher /config-watcher
+COPY telegraf/telegraf.conf.tmpl /telegraf.conf.tmpl
 ENTRYPOINT ["/config-watcher"]

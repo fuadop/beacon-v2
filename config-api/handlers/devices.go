@@ -306,6 +306,24 @@ func (h *DeviceHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toDeviceResponse(d))
 }
 
+func (h *DeviceHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid device id"))
+		return
+	}
+
+	if err := h.Store.Delete(id); errors.Is(err, store.ErrNotFound) {
+		writeError(w, http.StatusNotFound, err)
+		return
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func snmpFieldsChanged(req map[string]any) bool {
 	for _, key := range []string{"snmp_version", "community", "v3_user", "v3_auth_key", "v3_priv_key", "v3_auth_protocol", "v3_priv_protocol"} {
 		if _, ok := req[key]; ok {

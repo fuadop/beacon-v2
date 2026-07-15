@@ -114,3 +114,26 @@ func TestGetByIPNotFound(t *testing.T) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
 }
+
+func TestDeviceDelete(t *testing.T) {
+	s := newTestConfigDB(t)
+	id, err := s.Create(&Device{IPAddress: "10.0.0.5"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Delete(id); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	if _, err := s.Get(id); err != ErrNotFound {
+		t.Fatalf("expected ErrNotFound after delete, got %v", err)
+	}
+}
+
+func TestDeviceDeleteUnknownIDReturnsNotFound(t *testing.T) {
+	s := newTestConfigDB(t)
+	if err := s.Delete(999); err != ErrNotFound {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}

@@ -167,6 +167,22 @@ func (s *DeviceStore) Update(id int64, updates map[string]any) error {
 	return nil
 }
 
+// Delete removes a device by id. Returns ErrNotFound if no such device exists.
+func (s *DeviceStore) Delete(id int64) error {
+	res, err := s.db.Exec(`DELETE FROM devices WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("store: deleting device %d: %w", id, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: checking delete result for device %d: %w", id, err)
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func allowedDeviceColumn(col string) bool {
 	switch col {
 	case "hostname", "snmp_version", "community", "v3_user", "v3_auth_key", "v3_priv_key",

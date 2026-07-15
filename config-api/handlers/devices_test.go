@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -40,6 +41,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *DeviceHandler) {
 	mux.HandleFunc("POST /devices", h.Create)
 	mux.HandleFunc("GET /devices/{id}", h.Get)
 	mux.HandleFunc("PATCH /devices/{id}", h.Update)
+	mux.HandleFunc("DELETE /devices/{id}", h.Delete)
 
 	return httptest.NewServer(mux), h
 }
@@ -303,5 +305,71 @@ func TestListDevices(t *testing.T) {
 	}
 	if len(list) != 2 {
 		t.Fatalf("expected 2 devices, got %d", len(list))
+	}
+}
+
+func TestDeleteDevice(t *testing.T) {
+	srv, h := newTestServer(t)
+	defer srv.Close()
+
+	createResp, err := http.Post(srv.URL+"/devices", "application/json", strings.NewReader(`{"ip_address":"10.3.3.3"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var created deviceResponse
+	json.NewDecoder(createResp.Body).Decode(&created)
+	createResp.Body.Close()
+
+	req, err := http.NewRequest(http.MethodDelete, srv.URL+"/devices/"+strconv.FormatInt(created.ID, 10), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
+	}
+
+	if _, err := h.Store.Get(created.ID); err != store.ErrNotFound {
+		t.Fatalf("expected device to be gone after delete, got err=%v", err)
+	}
+}
+
+func TestDeleteDeviceNotFound(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodDelete, srv.URL+"/devices/999", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+}
+
+func TestDeleteDeviceInvalidID(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+
+	req, err := http.NewRequest(http.MethodDelete, srv.URL+"/devices/not-a-number", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", resp.StatusCode)
 	}
 }

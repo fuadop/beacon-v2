@@ -48,6 +48,7 @@ func main() {
 	mux.HandleFunc("POST /devices", deviceHandler.Create)
 	mux.HandleFunc("GET /devices/{id}", deviceHandler.Get)
 	mux.HandleFunc("PATCH /devices/{id}", deviceHandler.Update)
+	mux.HandleFunc("DELETE /devices/{id}", deviceHandler.Delete)
 	mux.HandleFunc("GET /settings/polling-interval", settingsHandler.GetPollingInterval)
 	mux.HandleFunc("POST /settings/polling-interval", settingsHandler.SetPollingInterval)
 	mux.HandleFunc("GET /settings/credential-duplication", settingsHandler.GetCredentialDuplication)

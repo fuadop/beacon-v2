@@ -118,6 +118,15 @@ pre-fill a table cell to edit in place either):
 
 Leave Device ID blank to add a new device instead (`POST`).
 
+Saving (create or update) also refreshes the whole dashboard afterward, so the
+Devices table picks up the change without a manual page reload.
+
+### Deleting a device
+
+Type the device's ID into the same **Device ID** field, then click
+**Delete Device** (below Save Device). This asks for a native browser
+confirmation, then sends `DELETE /devices/{id}` and clears the form.
+
 ## Health checks
 
 `config-api` and `trap-receiver` both expose `GET /healthz` (trap-receiver on

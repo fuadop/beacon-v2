@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,17 +32,31 @@ func main() {
 	listener.Params = gosnmp.Default
 
 	listenAddr := envOrDefault("TRAP_LISTEN_ADDR", "0.0.0.0:162")
+	healthAddr := envOrDefault("HEALTH_LISTEN_ADDR", ":8081")
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	healthMux := http.NewServeMux()
+	healthMux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+	healthServer := &http.Server{Addr: healthAddr, Handler: healthMux}
+	go func() {
+		if err := healthServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("health server exited", "error", err)
+		}
+	}()
 
 	go func() {
 		<-ctx.Done()
 		logger.Info("trap-receiver shutting down")
 		listener.Close()
+		healthServer.Close()
 	}()
 
-	logger.Info("trap-receiver listening", "addr", listenAddr, "db", dbPath)
+	logger.Info("trap-receiver listening", "addr", listenAddr, "health_addr", healthAddr, "db", dbPath)
 	if err := listener.Listen(listenAddr); err != nil {
 		logger.Error("trap listener exited", "error", err)
 		os.Exit(1)

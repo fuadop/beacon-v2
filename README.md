@@ -72,3 +72,22 @@ on your local machine, or `http://<host-ip>:8080` if you're accessing Grafana
 remotely. This is separate from the datasource wiring (which uses Docker's
 internal network) because the Business Forms panels call `config-api` directly
 from your browser, not through Grafana's backend.
+
+## Health checks
+
+`config-api` and `trap-receiver` both expose `GET /healthz` (trap-receiver on
+`:8081` by default, separate from its UDP/162 trap listener).
+
+## Testing
+
+`go test ./...` runs the unit/handler tests. `scripts/integration-test.sh`
+spins up a disposable copy of the metrics pipeline (InfluxDB, Telegraf,
+config-api, config-watcher) plus a simulated SNMP agent
+(`polinux/snmpd`), registers the agent as a device, and confirms a
+Telegraf-collected metric shows up in InfluxDB — proving the
+poll → InfluxDB path end-to-end. It builds its own images, uses an isolated
+network/volumes, and tears everything down on exit:
+
+```
+./scripts/integration-test.sh
+```

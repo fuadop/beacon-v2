@@ -8,4 +8,5 @@ RUN CGO_ENABLED=0 go build -o /out/trap-receiver ./trap-receiver
 FROM gcr.io/distroless/static-debian12
 COPY --from=build /out/trap-receiver /trap-receiver
 EXPOSE 162/udp
+EXPOSE 8081
 ENTRYPOINT ["/trap-receiver"]

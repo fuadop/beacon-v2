@@ -59,16 +59,17 @@
         },
         "updateEnabled": "manual",
         "update": {
-          "method": "POST",
-          "url": "http://localhost:8080/devices",
+          "method": "-",
+          "url": "",
           "datasource": "",
           "header": [],
           "contentType": "application/json",
-          "code": "if (context.panel.response && context.panel.response.ok) {\n  context.grafana.notifySuccess(['Device saved', 'The device was submitted successfully.']);\n  context.panel.initialRequest();\n} else {\n  context.grafana.notifyError(['Error', `Failed to save device: ${context.panel.response ? context.panel.response.status : 'unknown'}`]);\n}",
+          "code": "const elements = context.panel.elements;\nconst get = (id) => {\n  const el = elements.find((e) => e.id === id);\n  return el && el.value !== undefined && el.value !== null ? el.value : '';\n};\n\nconst deviceId = get('device_id');\nconst isEdit = !!deviceId;\n\nconst payload = {\n  ip_address: get('ip_address'),\n  hostname: get('hostname'),\n  snmp_version: get('snmp_version'),\n  group_name: get('group_name'),\n  v3_user: get('v3_user'),\n  v3_auth_protocol: get('v3_auth_protocol'),\n  v3_priv_protocol: get('v3_priv_protocol'),\n};\n\n// Only send credential fields if the user actually typed something -- leaving\n// them blank while editing must not overwrite the stored credential.\nconst community = get('community');\nconst v3AuthKey = get('v3_auth_key');\nconst v3PrivKey = get('v3_priv_key');\nif (!isEdit || community) payload.community = community;\nif (!isEdit || v3AuthKey) payload.v3_auth_key = v3AuthKey;\nif (!isEdit || v3PrivKey) payload.v3_priv_key = v3PrivKey;\n\nconst url = isEdit ? `http://localhost:8080/devices/${deviceId}` : 'http://localhost:8080/devices';\nconst method = isEdit ? 'PATCH' : 'POST';\n\nfetch(url, {\n  method,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(payload),\n})\n  .then(async (resp) => {\n    if (resp.ok) {\n      const body = await resp.json();\n      context.grafana.notifySuccess(['Saved', `Device ${body.ip_address} ${isEdit ? 'updated' : 'created'} -- status: ${body.status}.`]);\n      context.panel.initialRequest();\n    } else {\n      context.grafana.notifyError(['Error', `Failed to save device: HTTP ${resp.status}`]);\n    }\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Failed to save device: ${err}`]);\n  });",
           "highlight": false,
+          "highlightColor": "red",
           "confirm": false,
-          "payloadMode": "custom",
-          "getPayload": "const payload = {};\ncontext.panel.elements.forEach((element) => {\n  payload[element.id] = element.value ?? '';\n});\nreturn payload;",
+          "payloadMode": "all",
+          "getPayload": "return {}",
           "payload": {}
         },
         "resetAction": {
@@ -105,6 +106,18 @@
           "variant": "hidden"
         },
         "elements": [
+          {
+            "uid": "device_id",
+            "id": "device_id",
+            "title": "Device ID (blank = add new)",
+            "type": "string",
+            "section": "device",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "Find the ID in the Devices table below. Leave blank to create a new device.",
+            "unit": "",
+            "value": ""
+          },
           {
             "uid": "ip_address",
             "id": "ip_address",
@@ -178,7 +191,7 @@
             "section": "credentials",
             "labelWidth": 14,
             "width": null,
-            "tooltip": "",
+            "tooltip": "Leave blank when editing to keep the existing stored value.",
             "unit": "",
             "value": ""
           },
@@ -226,7 +239,7 @@
             "section": "credentials",
             "labelWidth": 14,
             "width": null,
-            "tooltip": "",
+            "tooltip": "Leave blank when editing to keep the existing stored value.",
             "unit": "",
             "value": ""
           },
@@ -262,7 +275,7 @@
             "section": "credentials",
             "labelWidth": 14,
             "width": null,
-            "tooltip": "",
+            "tooltip": "Leave blank when editing to keep the existing stored value.",
             "unit": "",
             "value": ""
           }
@@ -295,7 +308,7 @@
         "width": 0,
         "widthMode": "auto",
         "name": "deviceForm",
-        "elementValueChanged": ""
+        "elementValueChanged": "if (context.element.id === 'device_id') {\n  const id = context.element.value;\n  if (!id) {\n    return;\n  }\n  fetch(`http://localhost:8080/devices/${id}`)\n    .then((resp) => {\n      if (!resp.ok) {\n        throw new Error(`HTTP ${resp.status}`);\n      }\n      return resp.json();\n    })\n    .then((d) => {\n      context.panel.patchFormValue({\n        ip_address: d.ip_address || '',\n        hostname: d.hostname || '',\n        snmp_version: d.snmp_version || '',\n        group_name: d.group_name || '',\n        v3_user: d.v3_user || '',\n        v3_auth_protocol: d.v3_auth_protocol || '',\n        v3_priv_protocol: d.v3_priv_protocol || '',\n      });\n      context.grafana.notifySuccess(['Loaded', `Loaded device ${d.ip_address} (status: ${d.status}). Credential fields are left blank -- only fill them in if you want to change them.`]);\n    })\n    .catch((err) => {\n      context.grafana.notifyError(['Error', `Could not load device ${id}: ${err}`]);\n    });\n}"
       }
     },
     {

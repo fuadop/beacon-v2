@@ -73,25 +73,50 @@ Without that `create database` step, the InfluxDB-backed panel errors with
 database on their own.
 
 Grafana is at `http://localhost:3000`. The "Add / Edit Device" and "Polling
-Interval" panels' request URLs are hardcoded to `http://localhost:8080` — the
-address your browser needs to reach `config-api` on. This is separate from the
-Infinity/InfluxDB datasource wiring (which uses Docker's internal network)
-because Business Forms panels call `config-api` directly from your browser,
-not through Grafana's backend.
+Interval" panels talk to `config-api` at `http://localhost:8080` — hardcoded,
+because your *browser* needs to reach that address directly, and there's no
+way to make it configurable via a dashboard variable (see below). This is
+separate from the Infinity/InfluxDB datasource wiring, which uses Docker's
+internal network, because Business Forms panels call `config-api` directly
+from your browser rather than through Grafana's backend.
 
 If Grafana isn't on the same machine as your browser (or you're not using the
-default port mapping), you'll need to update those two panels' URLs to
-`http://<host-ip>:8080` yourself: open the panel, **Edit** →
-**Update Request** (and for Polling Interval, **Initial Request** too) → change
-the **URL** field. A dashboard variable would be the obvious way to make this
-configurable without hand-editing, but `volkovlabs-form-panel` v6.3.5 has a bug
-where it runs the *entire* substituted value through `encodeURIComponent`
-before use — turning `http://localhost:8080` into
+default port mapping), update the hardcoded `http://localhost:8080` yourself:
+- **Polling Interval**: open the panel → **Edit** → **Initial Request** and
+  **Update Request** → change the **URL** field.
+- **Add / Edit Device**: this panel doesn't use a URL field at all (see
+  below) — open the panel → **Edit** → **Update Request** → edit the
+  `http://localhost:8080` strings directly inside the **Code** box.
+
+A dashboard variable would be the obvious way to make this configurable
+without hand-editing, but `volkovlabs-form-panel` v6.3.5 has a bug where it
+runs the *entire* substituted value through `encodeURIComponent` before using
+it as a URL — turning `http://localhost:8080` into
 `http%3A%2F%2Flocalhost%3A8080`, which the browser then treats as a relative
-path against Grafana's own origin instead of an absolute URL. Confirmed via the
-plugin's own source (`FormPanel.tsx`: `fetch(replaceVariables(url, undefined,
-encodeURIComponent), ...)` for both the initial and update requests) — not
-something fixable from the dashboard JSON side.
+path against Grafana's own origin instead of an absolute URL. Confirmed via
+the plugin's own source (`FormPanel.tsx`:
+`fetch(replaceVariables(url, undefined, encodeURIComponent), ...)` for both
+the initial and update requests). Not fixable from the dashboard JSON side —
+hence the hardcoded value instead.
+
+### Editing an existing device
+
+The "Add / Edit Device" form is also how you fix a device stuck at `pending`
+or `failed` (there's no other UI for it — the Devices table is read-only, and
+`config-api` never sends credentials back to the browser, so it can't
+pre-fill a table cell to edit in place either):
+
+1. Find the device's numeric **ID** in the Devices table.
+2. Type it into the form's **Device ID** field. The non-secret fields
+   (IP, hostname, SNMP version, group) auto-populate; credential fields stay
+   blank on purpose.
+3. Change whatever needs fixing. Leave a credential field blank to keep the
+   value already stored — only fill one in if you're actually changing it.
+4. Click **Save Device**. This sends a `PATCH` (not `POST`) when Device ID is
+   set, and `config-api` re-probes with the resulting credentials, updating
+   status to `active` or `failed` immediately.
+
+Leave Device ID blank to add a new device instead (`POST`).
 
 ## Health checks
 

@@ -10,22 +10,22 @@ import (
 // are stored and returned as ciphertext — callers are responsible for encrypting
 // before writing and decrypting after reading, via internal/crypto.
 type Device struct {
-	ID              int64
-	IPAddress       string
-	Hostname        string
-	SNMPVersion     string
-	Community       string
-	V3User          string
-	V3AuthKey       string
-	V3PrivKey       string
-	V3AuthProtocol  string
-	V3PrivProtocol  string
-	GroupName       string
-	Status          string
-	IsPublicIP      bool
-	DiscoveredVia   string
-	CreatedAt       string
-	UpdatedAt       string
+	ID             int64
+	IPAddress      string
+	Hostname       string
+	SNMPVersion    string
+	Community      string
+	V3User         string
+	V3AuthKey      string
+	V3PrivKey      string
+	V3AuthProtocol string
+	V3PrivProtocol string
+	GroupName      string
+	Status         string
+	IsPublicIP     bool
+	DiscoveredVia  string
+	CreatedAt      string
+	UpdatedAt      string
 }
 
 var ErrNotFound = errors.New("store: not found")

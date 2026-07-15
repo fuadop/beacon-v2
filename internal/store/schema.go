@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 INSERT OR IGNORE INTO settings (key, value) VALUES ('polling_interval_seconds', '60');
+-- Credential duplication (reusing a parent device's SNMP credentials against
+-- devices found via routing-table discovery) is opt-in per plan §4.5; default off.
+INSERT OR IGNORE INTO settings (key, value) VALUES ('credential_duplication_enabled', '0');
 `
 
 const trapsSchema = `

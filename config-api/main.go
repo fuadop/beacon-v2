@@ -41,6 +41,8 @@ func main() {
 	mux.HandleFunc("PATCH /devices/{id}", deviceHandler.Update)
 	mux.HandleFunc("GET /settings/polling-interval", settingsHandler.GetPollingInterval)
 	mux.HandleFunc("POST /settings/polling-interval", settingsHandler.SetPollingInterval)
+	mux.HandleFunc("GET /settings/credential-duplication", settingsHandler.GetCredentialDuplication)
+	mux.HandleFunc("POST /settings/credential-duplication", settingsHandler.SetCredentialDuplication)
 
 	addr := ":8080"
 	logger.Info("config-api listening", "addr", addr, "db", dbPath)

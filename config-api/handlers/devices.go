@@ -20,22 +20,22 @@ type DeviceHandler struct {
 // fields are never included in plaintext or ciphertext — only whether they're set —
 // per plan §4.4/§7.1 (never render credentials back to the browser).
 type deviceResponse struct {
-	ID              int64  `json:"id"`
-	IPAddress       string `json:"ip_address"`
-	Hostname        string `json:"hostname"`
-	SNMPVersion     string `json:"snmp_version"`
-	HasCommunity    bool   `json:"has_community"`
-	V3User          string `json:"v3_user,omitempty"`
-	HasV3AuthKey    bool   `json:"has_v3_auth_key"`
-	HasV3PrivKey    bool   `json:"has_v3_priv_key"`
-	V3AuthProtocol  string `json:"v3_auth_protocol,omitempty"`
-	V3PrivProtocol  string `json:"v3_priv_protocol,omitempty"`
-	GroupName       string `json:"group_name,omitempty"`
-	Status          string `json:"status"`
-	IsPublicIP      bool   `json:"is_public_ip"`
-	DiscoveredVia   string `json:"discovered_via,omitempty"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	ID             int64  `json:"id"`
+	IPAddress      string `json:"ip_address"`
+	Hostname       string `json:"hostname"`
+	SNMPVersion    string `json:"snmp_version"`
+	HasCommunity   bool   `json:"has_community"`
+	V3User         string `json:"v3_user,omitempty"`
+	HasV3AuthKey   bool   `json:"has_v3_auth_key"`
+	HasV3PrivKey   bool   `json:"has_v3_priv_key"`
+	V3AuthProtocol string `json:"v3_auth_protocol,omitempty"`
+	V3PrivProtocol string `json:"v3_priv_protocol,omitempty"`
+	GroupName      string `json:"group_name,omitempty"`
+	Status         string `json:"status"`
+	IsPublicIP     bool   `json:"is_public_ip"`
+	DiscoveredVia  string `json:"discovered_via,omitempty"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 func toDeviceResponse(d *store.Device) deviceResponse {

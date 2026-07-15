@@ -35,18 +35,24 @@ func main() {
 	settings := store.NewSettingsStore(db)
 
 	cfg := watcherConfig{
-		templatePath:    envOrDefault("TELEGRAF_TEMPLATE_PATH", "/telegraf.conf.tmpl"),
-		configPath:      envOrDefault("TELEGRAF_CONF_PATH", "/etc/telegraf/telegraf.conf"),
-		containerName:   envOrDefault("TELEGRAF_CONTAINER_NAME", "telegraf"),
-		influxURL:       envOrDefault("INFLUXDB_URL", "http://influxdb:8181"),
-		influxToken:     os.Getenv("INFLUXDB_TOKEN"),
-		influxDatabase:  envOrDefault("INFLUXDB_DATABASE", "network_monitor"),
+		templatePath:   envOrDefault("TELEGRAF_TEMPLATE_PATH", "/telegraf.conf.tmpl"),
+		configPath:     envOrDefault("TELEGRAF_CONF_PATH", "/etc/telegraf/telegraf.conf"),
+		containerName:  envOrDefault("TELEGRAF_CONTAINER_NAME", "telegraf"),
+		influxURL:      envOrDefault("INFLUXDB_URL", "http://influxdb:8181"),
+		influxToken:    os.Getenv("INFLUXDB_TOKEN"),
+		influxDatabase: envOrDefault("INFLUXDB_DATABASE", "network_monitor"),
 	}
 
 	pollSeconds, err := strconv.Atoi(envOrDefault("CONFIG_WATCHER_POLL_SECONDS", "10"))
 	if err != nil || pollSeconds <= 0 {
 		logger.Warn("invalid CONFIG_WATCHER_POLL_SECONDS, defaulting to 10", "error", err)
 		pollSeconds = 10
+	}
+
+	sweepSeconds, err := strconv.Atoi(envOrDefault("DISCOVERY_SWEEP_INTERVAL_SECONDS", "300"))
+	if err != nil || sweepSeconds <= 0 {
+		logger.Warn("invalid DISCOVERY_SWEEP_INTERVAL_SECONDS, defaulting to 300", "error", err)
+		sweepSeconds = 300
 	}
 
 	discoverGatewayDevice(logger, devices, key)
@@ -57,16 +63,24 @@ func main() {
 	// Reconcile once immediately on startup, then on every tick.
 	reconcileTelegrafConfig(logger, devices, settings, key, cfg)
 
-	ticker := time.NewTicker(time.Duration(pollSeconds) * time.Second)
-	defer ticker.Stop()
+	reconcileTicker := time.NewTicker(time.Duration(pollSeconds) * time.Second)
+	defer reconcileTicker.Stop()
+
+	// The routing-table sweep runs on its own, much slower cadence: it makes
+	// live SNMP walks against every active device, so ticking it as fast as the
+	// config reconcile loop would hammer devices for no benefit.
+	sweepTicker := time.NewTicker(time.Duration(sweepSeconds) * time.Second)
+	defer sweepTicker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Info("config-watcher shutting down")
 			return
-		case <-ticker.C:
+		case <-reconcileTicker.C:
 			reconcileTelegrafConfig(logger, devices, settings, key, cfg)
+		case <-sweepTicker.C:
+			runDiscoverySweep(logger, devices, settings, key)
 		}
 	}
 }

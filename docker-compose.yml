@@ -53,6 +53,9 @@ services:
       - "8080:8080"
     volumes:
       - config-db:/data
+      - traps-db:/traps-data
+    environment:
+      - TRAPS_DB_PATH=/traps-data/traps.db
     env_file: .env
 
   config-watcher:

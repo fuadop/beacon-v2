@@ -21,6 +21,14 @@ func main() {
 	}
 	defer db.Close()
 
+	trapsDBPath := envOrDefault("TRAPS_DB_PATH", "/data/traps.db")
+	trapsDB, err := store.OpenTrapsDB(trapsDBPath)
+	if err != nil {
+		logger.Error("opening traps db", "error", err)
+		os.Exit(1)
+	}
+	defer trapsDB.Close()
+
 	key, err := crypto.NewKey(os.Getenv("ENCRYPTION_KEY"))
 	if err != nil {
 		logger.Error("loading encryption key", "error", err)
@@ -29,6 +37,7 @@ func main() {
 
 	deviceHandler := &handlers.DeviceHandler{Store: store.NewDeviceStore(db), Key: key}
 	settingsHandler := &handlers.SettingsHandler{Store: store.NewSettingsStore(db)}
+	trapsHandler := &handlers.TrapsHandler{Store: store.NewTrapStore(trapsDB)}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -43,6 +52,7 @@ func main() {
 	mux.HandleFunc("POST /settings/polling-interval", settingsHandler.SetPollingInterval)
 	mux.HandleFunc("GET /settings/credential-duplication", settingsHandler.GetCredentialDuplication)
 	mux.HandleFunc("POST /settings/credential-duplication", settingsHandler.SetCredentialDuplication)
+	mux.HandleFunc("GET /traps", trapsHandler.List)
 
 	addr := ":8080"
 	logger.Info("config-api listening", "addr", addr, "db", dbPath)

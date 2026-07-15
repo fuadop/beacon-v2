@@ -65,13 +65,26 @@ docker compose exec influxdb influxdb3 create token --admin
 docker compose up -d config-watcher grafana
 ```
 
-Grafana is at `http://localhost:3000`. On the "Network Monitor" dashboard, set
-the **Config API URL** variable at the top to whatever address your browser
-can reach `config-api` on — `http://localhost:8080` if Grafana and Docker are
-on your local machine, or `http://<host-ip>:8080` if you're accessing Grafana
-remotely. This is separate from the datasource wiring (which uses Docker's
-internal network) because the Business Forms panels call `config-api` directly
-from your browser, not through Grafana's backend.
+Grafana is at `http://localhost:3000`. The "Add / Edit Device" and "Polling
+Interval" panels' request URLs are hardcoded to `http://localhost:8080` — the
+address your browser needs to reach `config-api` on. This is separate from the
+Infinity/InfluxDB datasource wiring (which uses Docker's internal network)
+because Business Forms panels call `config-api` directly from your browser,
+not through Grafana's backend.
+
+If Grafana isn't on the same machine as your browser (or you're not using the
+default port mapping), you'll need to update those two panels' URLs to
+`http://<host-ip>:8080` yourself: open the panel, **Edit** →
+**Update Request** (and for Polling Interval, **Initial Request** too) → change
+the **URL** field. A dashboard variable would be the obvious way to make this
+configurable without hand-editing, but `volkovlabs-form-panel` v6.3.5 has a bug
+where it runs the *entire* substituted value through `encodeURIComponent`
+before use — turning `http://localhost:8080` into
+`http%3A%2F%2Flocalhost%3A8080`, which the browser then treats as a relative
+path against Grafana's own origin instead of an absolute URL. Confirmed via the
+plugin's own source (`FormPanel.tsx`: `fetch(replaceVariables(url, undefined,
+encodeURIComponent), ...)` for both the initial and update requests) — not
+something fixable from the dashboard JSON side.
 
 ## Health checks
 

@@ -14,21 +14,7 @@
     "to": "now"
   },
   "templating": {
-    "list": [
-      {
-        "name": "config_api_url",
-        "type": "textbox",
-        "label": "Config API URL (browser-reachable)",
-        "description": "Address your browser can reach the config-api service on \u2014 e.g. http://localhost:8080, or http://<host-ip>:8080 if Grafana isn't on your local machine.",
-        "query": "http://localhost:8080",
-        "current": {
-          "value": "http://localhost:8080",
-          "text": "http://localhost:8080"
-        },
-        "options": [],
-        "hide": 0
-      }
-    ]
+    "list": []
   },
   "panels": [
     {
@@ -74,7 +60,7 @@
         "updateEnabled": "manual",
         "update": {
           "method": "POST",
-          "url": "${config_api_url}/devices",
+          "url": "http://localhost:8080/devices",
           "datasource": "",
           "header": [],
           "contentType": "application/json",
@@ -340,7 +326,7 @@
         "sync": true,
         "initial": {
           "method": "GET",
-          "url": "${config_api_url}/settings/polling-interval",
+          "url": "http://localhost:8080/settings/polling-interval",
           "datasource": "",
           "header": [],
           "contentType": "application/json",
@@ -355,7 +341,7 @@
         "updateEnabled": "manual",
         "update": {
           "method": "POST",
-          "url": "${config_api_url}/settings/polling-interval",
+          "url": "http://localhost:8080/settings/polling-interval",
           "datasource": "",
           "header": [],
           "contentType": "application/json",

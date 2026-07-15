@@ -5,15 +5,46 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/fuad/network-monitor/internal/crypto"
 	"github.com/fuad/network-monitor/internal/netutil"
+	"github.com/fuad/network-monitor/internal/snmp"
 	"github.com/fuad/network-monitor/internal/store"
 )
 
+// defaultProbeTimeout bounds how long Create/Update block waiting on an SNMP
+// probe. Only the gateway-discovery flow (config-watcher) sets device status
+// in the background; devices added or edited through this API get probed
+// synchronously with the credentials actually supplied so the dashboard shows
+// active/failed immediately instead of leaving devices stuck at "pending"
+// forever with no way to reach "active" from the UI.
+const defaultProbeTimeout = 3 * time.Second
+
 type DeviceHandler struct {
-	Store *store.DeviceStore
-	Key   *crypto.Key
+	Store        *store.DeviceStore
+	Key          *crypto.Key
+	ProbeTimeout time.Duration
+}
+
+func (h *DeviceHandler) probeTimeout() time.Duration {
+	if h.ProbeTimeout > 0 {
+		return h.ProbeTimeout
+	}
+	return defaultProbeTimeout
+}
+
+// probeStatus attempts an SNMP read using creds and returns "active" or
+// "failed". If creds has no SNMP version set, there's nothing to probe yet and
+// the device stays "pending".
+func (h *DeviceHandler) probeStatus(ip string, creds snmp.Credentials) string {
+	if creds.Version == "" {
+		return "pending"
+	}
+	if err := snmp.Verify(ip, creds, h.probeTimeout()); err != nil {
+		return "failed"
+	}
+	return "active"
 }
 
 // deviceResponse is the wire representation returned to the browser. Credential
@@ -135,6 +166,16 @@ func (h *DeviceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	status := h.probeStatus(req.IPAddress, snmp.Credentials{
+		Version:        req.SNMPVersion,
+		Community:      req.Community,
+		V3User:         req.V3User,
+		V3AuthKey:      req.V3AuthKey,
+		V3PrivKey:      req.V3PrivKey,
+		V3AuthProtocol: req.V3AuthProtocol,
+		V3PrivProtocol: req.V3PrivProtocol,
+	})
+
 	d := &store.Device{
 		IPAddress:      req.IPAddress,
 		Hostname:       req.Hostname,
@@ -146,7 +187,7 @@ func (h *DeviceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		V3AuthProtocol: req.V3AuthProtocol,
 		V3PrivProtocol: req.V3PrivProtocol,
 		GroupName:      req.GroupName,
-		Status:         "pending",
+		Status:         status,
 		// is_public_ip is derived server-side, never trusted from the client.
 		IsPublicIP:    netutil.IsPublic(req.IPAddress),
 		DiscoveredVia: "manual",
@@ -223,5 +264,53 @@ func (h *DeviceHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
+
+	// Re-probe with the resulting credentials whenever the caller touched
+	// SNMP-relevant fields and didn't explicitly set status themselves — same
+	// reasoning as Create: this is the only path by which a device edited
+	// through the dashboard can move to "active" or "failed".
+	if snmpFieldsChanged(req) {
+		if _, explicitStatus := req["status"]; !explicitStatus {
+			community, err := h.Key.Decrypt(d.Community)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			authKey, err := h.Key.Decrypt(d.V3AuthKey)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			privKey, err := h.Key.Decrypt(d.V3PrivKey)
+			if err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			status := h.probeStatus(d.IPAddress, snmp.Credentials{
+				Version:        d.SNMPVersion,
+				Community:      community,
+				V3User:         d.V3User,
+				V3AuthKey:      authKey,
+				V3PrivKey:      privKey,
+				V3AuthProtocol: d.V3AuthProtocol,
+				V3PrivProtocol: d.V3PrivProtocol,
+			})
+			if err := h.Store.Update(id, map[string]any{"status": status}); err != nil {
+				writeError(w, http.StatusInternalServerError, err)
+				return
+			}
+			d.Status = status
+		}
+	}
+
 	writeJSON(w, http.StatusOK, toDeviceResponse(d))
+}
+
+func snmpFieldsChanged(req map[string]any) bool {
+	for _, key := range []string{"snmp_version", "community", "v3_user", "v3_auth_key", "v3_priv_key", "v3_auth_protocol", "v3_priv_protocol"} {
+		if _, ok := req[key]; ok {
+			return true
+		}
+	}
+	return false
 }

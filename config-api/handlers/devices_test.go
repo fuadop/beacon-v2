@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fuad/network-monitor/internal/crypto"
 	"github.com/fuad/network-monitor/internal/store"
@@ -30,7 +31,9 @@ func newTestServer(t *testing.T) (*httptest.Server, *DeviceHandler) {
 		t.Fatal(err)
 	}
 
-	h := &DeviceHandler{Store: store.NewDeviceStore(db), Key: key}
+	// Short timeout: tests probe unreachable/fake IPs and should fail fast
+	// rather than eating the 3s production default on every device creation.
+	h := &DeviceHandler{Store: store.NewDeviceStore(db), Key: key, ProbeTimeout: 100 * time.Millisecond}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /devices", h.List)
@@ -71,8 +74,49 @@ func TestCreateDeviceMasksCredentials(t *testing.T) {
 	if got.IsPublicIP {
 		t.Fatal("192.168.1.10 should be classified private")
 	}
+	// 192.168.1.10 isn't a real reachable device in this test, so the
+	// synchronous create-time probe (see TestCreateDeviceProbesAndSetsStatus)
+	// is expected to fail — that's the point: it proves credentials were
+	// actually tried rather than the device silently defaulting to "pending".
+	if got.Status != "failed" {
+		t.Fatalf("expected status failed (unreachable probe target), got %q", got.Status)
+	}
+}
+
+func TestCreateDeviceWithoutSNMPVersionStaysPending(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/devices", "application/json", strings.NewReader(`{"ip_address":"10.9.9.9"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var got deviceResponse
+	json.NewDecoder(resp.Body).Decode(&got)
 	if got.Status != "pending" {
-		t.Fatalf("expected status pending, got %q", got.Status)
+		t.Fatalf("expected status pending when no snmp_version is given (nothing to probe), got %q", got.Status)
+	}
+}
+
+func TestCreateDeviceProbesAndSetsStatus(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+
+	// Same reasoning as TestCreateDeviceMasksCredentials: no real agent is
+	// listening, so a version being set means the probe runs and fails.
+	body := `{"ip_address":"10.9.9.10","snmp_version":"v2c","community":"public"}`
+	resp, err := http.Post(srv.URL+"/devices", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var got deviceResponse
+	json.NewDecoder(resp.Body).Decode(&got)
+	if got.Status != "failed" {
+		t.Fatalf("expected status failed, got %q", got.Status)
 	}
 }
 
@@ -171,6 +215,72 @@ func TestUpdateDeviceCredentialRoundTripsThroughEncryption(t *testing.T) {
 	}
 	if decrypted != "new-secret" {
 		t.Fatalf("expected decrypted community 'new-secret', got %q", decrypted)
+	}
+}
+
+func TestUpdateDeviceReprobesWhenSNMPFieldsChange(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+
+	createResp, err := http.Post(srv.URL+"/devices", "application/json", strings.NewReader(`{"ip_address":"10.9.9.11"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var created deviceResponse
+	json.NewDecoder(createResp.Body).Decode(&created)
+	createResp.Body.Close()
+	if created.Status != "pending" {
+		t.Fatalf("expected freshly-created device with no version to be pending, got %q", created.Status)
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, srv.URL+"/devices/1",
+		strings.NewReader(`{"snmp_version":"v2c","community":"public"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	patchResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer patchResp.Body.Close()
+
+	var got deviceResponse
+	json.NewDecoder(patchResp.Body).Decode(&got)
+	// Unreachable target -> probe runs and fails, proving the update path
+	// re-probes rather than leaving status wherever it was before the edit.
+	if got.Status != "failed" {
+		t.Fatalf("expected status failed after adding snmp credentials to an unreachable IP, got %q", got.Status)
+	}
+}
+
+func TestUpdateDeviceRespectsExplicitStatus(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+
+	createResp, err := http.Post(srv.URL+"/devices", "application/json", strings.NewReader(`{"ip_address":"10.9.9.12"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	createResp.Body.Close()
+
+	// Caller explicitly sets status alongside credentials — e.g. an operator
+	// who knows the device is fine and wants to force it active without
+	// waiting on a probe. That explicit choice must not be overridden.
+	req, err := http.NewRequest(http.MethodPatch, srv.URL+"/devices/1",
+		strings.NewReader(`{"snmp_version":"v2c","community":"public","status":"active"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	patchResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer patchResp.Body.Close()
+
+	var got deviceResponse
+	json.NewDecoder(patchResp.Body).Decode(&got)
+	if got.Status != "active" {
+		t.Fatalf("expected explicit status to be respected, got %q", got.Status)
 	}
 }
 

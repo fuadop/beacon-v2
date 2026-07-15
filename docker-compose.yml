@@ -31,10 +31,12 @@ services:
       - influxdb
 
   grafana:
-    image: grafana/grafana:11.3.0
+    image: grafana/grafana:13.1.0
     restart: unless-stopped
     ports:
       - "3000:3000"
+    environment:
+      - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource,volkovlabs-form-panel,volkovlabs-table-panel
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro

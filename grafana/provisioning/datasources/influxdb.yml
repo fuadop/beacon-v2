@@ -1,0 +1,20 @@
+apiVersion: 1
+
+datasources:
+  - name: InfluxDB
+    uid: influxdb
+    type: influxdb
+    access: proxy
+    url: $INFLUXDB_URL
+    isDefault: true
+    # SQL/FlightSQL mode, verified against InfluxDB 3 Core: queries run over gRPC
+    # multiplexed on the same HTTP port InfluxDB serves on (no separate port needed),
+    # confirmed via a live write+query round trip and through this exact dashboard.
+    jsonData:
+      version: SQL
+      dbName: $INFLUXDB_DATABASE
+      httpMode: POST
+      insecureGrpc: true
+    secureJsonData:
+      token: $INFLUXDB_TOKEN
+    editable: false

@@ -76,6 +76,23 @@ func TestCreateDeviceMasksCredentials(t *testing.T) {
 	}
 }
 
+func TestCreateDeviceReturnsPopulatedTimestamps(t *testing.T) {
+	srv, _ := newTestServer(t)
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/devices", "application/json", strings.NewReader(`{"ip_address":"10.5.5.5"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	var got deviceResponse
+	json.NewDecoder(resp.Body).Decode(&got)
+	if got.CreatedAt == "" || got.UpdatedAt == "" {
+		t.Fatalf("expected created_at/updated_at to be populated in the create response, got %+v", got)
+	}
+}
+
 func TestCreateDeviceClassifiesPublicIP(t *testing.T) {
 	srv, _ := newTestServer(t)
 	defer srv.Close()

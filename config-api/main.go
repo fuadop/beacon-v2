@@ -56,7 +56,7 @@ func main() {
 
 	addr := ":8080"
 	logger.Info("config-api listening", "addr", addr, "db", dbPath)
-	if err := http.ListenAndServe(addr, requestLogger(logger, mux)); err != nil {
+	if err := http.ListenAndServe(addr, requestLogger(logger, withCORS(mux))); err != nil {
 		logger.Error("server exited", "error", err)
 		os.Exit(1)
 	}
@@ -72,6 +72,26 @@ func envOrDefault(key, fallback string) string {
 func requestLogger(logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("request", "method", r.Method, "path", r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}
+
+// withCORS lets the Grafana Business Forms panels call this API directly from
+// the browser. Those panels issue plain fetch() calls from the user's browser
+// rather than going through Grafana's backend proxy (unlike the Infinity/InfluxDB
+// datasource queries), so without CORS headers here the browser blocks every
+// response — this isn't optional plumbing, the dashboard doesn't work without it.
+// Wide open by design: this API has no auth of its own and is meant to sit
+// behind the operator's own network boundary, same as Grafana itself.
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
 }

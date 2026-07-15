@@ -1,0 +1,12 @@
+apiVersion: 1
+
+datasources:
+  # Backs the Business Table panels (device list, recent traps), which query
+  # config-api directly over HTTP/JSON. No base URL configured here — each
+  # panel's query specifies its own full config-api URL.
+  - name: ConfigAPI
+    uid: infinity
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    jsonData: {}
+    editable: false

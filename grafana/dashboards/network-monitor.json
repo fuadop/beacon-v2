@@ -1,0 +1,1655 @@
+{
+  "id": null,
+  "uid": "network-monitor",
+  "title": "Network Monitor",
+  "tags": [
+    "network-monitor"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 0,
+  "refresh": "",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "config_api_url",
+        "type": "textbox",
+        "label": "Config API URL (browser-reachable)",
+        "description": "Address your browser can reach the config-api service on \u2014 e.g. http://localhost:8080, or http://<host-ip>:8080 if Grafana isn't on your local machine.",
+        "query": "http://localhost:8080",
+        "current": {
+          "value": "http://localhost:8080",
+          "text": "http://localhost:8080"
+        },
+        "options": [],
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "gridPos": {
+        "h": 22,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "title": "Add / Edit Device",
+      "type": "volkovlabs-form-panel",
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "randomWalk"
+        }
+      ],
+      "options": {
+        "sync": true,
+        "initial": {
+          "method": "-",
+          "url": "",
+          "datasource": "",
+          "header": [],
+          "contentType": "application/json",
+          "code": "context.panel.enableSubmit();",
+          "highlight": false,
+          "highlightColor": "red",
+          "confirm": false,
+          "payloadMode": "all",
+          "getPayload": "return {}",
+          "payload": {}
+        },
+        "updateEnabled": "manual",
+        "update": {
+          "method": "POST",
+          "url": "${config_api_url}/devices",
+          "datasource": "",
+          "header": [],
+          "contentType": "application/json",
+          "code": "if (context.panel.response && context.panel.response.ok) {\n  context.grafana.notifySuccess(['Device saved', 'The device was submitted successfully.']);\n  context.panel.initialRequest();\n} else {\n  context.grafana.notifyError(['Error', `Failed to save device: ${context.panel.response ? context.panel.response.status : 'unknown'}`]);\n}",
+          "highlight": false,
+          "confirm": false,
+          "payloadMode": "custom",
+          "getPayload": "const payload = {};\ncontext.panel.elements.forEach((element) => {\n  payload[element.id] = element.value ?? '';\n});\nreturn payload;",
+          "payload": {}
+        },
+        "resetAction": {
+          "mode": "initial",
+          "code": "",
+          "datasource": "",
+          "getPayload": "return {}",
+          "payload": {},
+          "confirm": false
+        },
+        "buttonGroup": {
+          "orientation": "center",
+          "size": "md"
+        },
+        "submit": {
+          "icon": "cloud-upload",
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "text": "Save Device",
+          "variant": "primary",
+          "orientation": "center",
+          "size": "md"
+        },
+        "reset": {
+          "icon": "process",
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "text": "Clear",
+          "variant": "secondary"
+        },
+        "saveDefault": {
+          "icon": "save",
+          "text": "Save Default",
+          "variant": "hidden"
+        },
+        "elements": [
+          {
+            "uid": "ip_address",
+            "id": "ip_address",
+            "title": "IP Address",
+            "type": "string",
+            "section": "device",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "value": ""
+          },
+          {
+            "uid": "hostname",
+            "id": "hostname",
+            "title": "Hostname",
+            "type": "string",
+            "section": "device",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "value": ""
+          },
+          {
+            "uid": "snmp_version",
+            "id": "snmp_version",
+            "title": "SNMP Version",
+            "type": "select",
+            "section": "device",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "options": [
+              {
+                "id": "v1",
+                "label": "v1",
+                "value": "v1"
+              },
+              {
+                "id": "v2c",
+                "label": "v2c",
+                "value": "v2c"
+              },
+              {
+                "id": "v3",
+                "label": "v3",
+                "value": "v3"
+              }
+            ],
+            "allowCustomValue": false
+          },
+          {
+            "uid": "group_name",
+            "id": "group_name",
+            "title": "Group",
+            "type": "string",
+            "section": "device",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "value": ""
+          },
+          {
+            "uid": "community",
+            "id": "community",
+            "title": "Community (v1/v2c)",
+            "type": "password",
+            "section": "credentials",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "value": ""
+          },
+          {
+            "uid": "v3_user",
+            "id": "v3_user",
+            "title": "v3 User",
+            "type": "string",
+            "section": "credentials",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "value": ""
+          },
+          {
+            "uid": "v3_auth_protocol",
+            "id": "v3_auth_protocol",
+            "title": "v3 Auth Protocol",
+            "type": "select",
+            "section": "credentials",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "options": [
+              {
+                "id": "MD5",
+                "label": "MD5",
+                "value": "MD5"
+              },
+              {
+                "id": "SHA",
+                "label": "SHA",
+                "value": "SHA"
+              }
+            ],
+            "allowCustomValue": false
+          },
+          {
+            "uid": "v3_auth_key",
+            "id": "v3_auth_key",
+            "title": "v3 Auth Key",
+            "type": "password",
+            "section": "credentials",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "value": ""
+          },
+          {
+            "uid": "v3_priv_protocol",
+            "id": "v3_priv_protocol",
+            "title": "v3 Priv Protocol",
+            "type": "select",
+            "section": "credentials",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "options": [
+              {
+                "id": "DES",
+                "label": "DES",
+                "value": "DES"
+              },
+              {
+                "id": "AES",
+                "label": "AES",
+                "value": "AES"
+              }
+            ],
+            "allowCustomValue": false
+          },
+          {
+            "uid": "v3_priv_key",
+            "id": "v3_priv_key",
+            "title": "v3 Priv Key",
+            "type": "password",
+            "section": "credentials",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "value": ""
+          }
+        ],
+        "layout": {
+          "orientation": "vertical",
+          "padding": 10,
+          "sectionVariant": "default",
+          "variant": "single"
+        },
+        "confirmModal": {
+          "title": "Confirm",
+          "body": "Please confirm",
+          "confirm": "Confirm",
+          "cancel": "Cancel",
+          "elementDisplayMode": "modified",
+          "columns": {
+            "include": [
+              "name",
+              "oldValue",
+              "newValue"
+            ],
+            "name": "Label",
+            "oldValue": "Old Value",
+            "newValue": "New Value"
+          }
+        },
+        "height": 0,
+        "heightMode": "auto",
+        "width": 0,
+        "widthMode": "auto",
+        "name": "deviceForm",
+        "elementValueChanged": ""
+      }
+    },
+    {
+      "id": 2,
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "title": "Polling Interval",
+      "type": "volkovlabs-form-panel",
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "randomWalk"
+        }
+      ],
+      "options": {
+        "sync": true,
+        "initial": {
+          "method": "GET",
+          "url": "${config_api_url}/settings/polling-interval",
+          "datasource": "",
+          "header": [],
+          "contentType": "application/json",
+          "code": "context.panel.enableSubmit();",
+          "highlight": false,
+          "highlightColor": "red",
+          "confirm": false,
+          "payloadMode": "all",
+          "getPayload": "return {}",
+          "payload": {}
+        },
+        "updateEnabled": "manual",
+        "update": {
+          "method": "POST",
+          "url": "${config_api_url}/settings/polling-interval",
+          "datasource": "",
+          "header": [],
+          "contentType": "application/json",
+          "code": "if (context.panel.response && context.panel.response.ok) {\n  context.grafana.notifySuccess(['Saved', 'Polling interval updated.']);\n  context.panel.initialRequest();\n} else {\n  context.grafana.notifyError(['Error', 'Failed to update polling interval.']);\n}",
+          "highlight": true,
+          "highlightColor": "red",
+          "confirm": false,
+          "payloadMode": "custom",
+          "getPayload": "return { polling_interval_seconds: Number(context.panel.elements.find(e => e.id === 'polling_interval_seconds').value) };",
+          "payload": {}
+        },
+        "resetAction": {
+          "mode": "initial",
+          "code": "",
+          "datasource": "",
+          "getPayload": "return {}",
+          "payload": {},
+          "confirm": false
+        },
+        "buttonGroup": {
+          "orientation": "center",
+          "size": "md"
+        },
+        "submit": {
+          "icon": "cloud-upload",
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "text": "Save",
+          "variant": "primary",
+          "orientation": "center",
+          "size": "md"
+        },
+        "reset": {
+          "icon": "process",
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "text": "Reset",
+          "variant": "hidden"
+        },
+        "saveDefault": {
+          "icon": "save",
+          "text": "Save Default",
+          "variant": "hidden"
+        },
+        "elements": [
+          {
+            "uid": "polling_interval_seconds",
+            "id": "polling_interval_seconds",
+            "title": "Polling Interval",
+            "type": "select",
+            "section": "settings",
+            "labelWidth": 14,
+            "width": null,
+            "tooltip": "",
+            "unit": "",
+            "options": [
+              {
+                "id": "30",
+                "label": "30 seconds",
+                "value": 30
+              },
+              {
+                "id": "60",
+                "label": "1 minute",
+                "value": 60
+              },
+              {
+                "id": "120",
+                "label": "2 minutes",
+                "value": 120
+              },
+              {
+                "id": "300",
+                "label": "5 minutes",
+                "value": 300
+              },
+              {
+                "id": "600",
+                "label": "10 minutes",
+                "value": 600
+              }
+            ],
+            "allowCustomValue": false
+          }
+        ],
+        "layout": {
+          "orientation": "vertical",
+          "padding": 10,
+          "sectionVariant": "default",
+          "variant": "single"
+        },
+        "confirmModal": {
+          "title": "Confirm",
+          "body": "Please confirm",
+          "confirm": "Confirm",
+          "cancel": "Cancel",
+          "elementDisplayMode": "modified",
+          "columns": {
+            "include": [
+              "name",
+              "oldValue",
+              "newValue"
+            ],
+            "name": "Label",
+            "oldValue": "Old Value",
+            "newValue": "New Value"
+          }
+        },
+        "height": 0,
+        "heightMode": "auto",
+        "width": 0,
+        "widthMode": "auto",
+        "name": "pollingForm",
+        "elementValueChanged": ""
+      }
+    },
+    {
+      "id": 3,
+      "gridPos": {
+        "h": 9,
+        "w": 18,
+        "x": 0,
+        "y": 22
+      },
+      "title": "Devices",
+      "type": "volkovlabs-table-panel",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://config-api:8080/devices",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [],
+          "parser": "backend"
+        }
+      ],
+      "options": {
+        "isColumnManagerAvailable": false,
+        "nestedObjects": [],
+        "saveUserPreference": false,
+        "showFiltersInColumnManager": false,
+        "showSortingInColumnManager": false,
+        "tables": [
+          {
+            "actionsColumnConfig": {
+              "alignment": "start",
+              "fontSize": "sm",
+              "label": "",
+              "width": {
+                "auto": false,
+                "value": 100
+              }
+            },
+            "addRow": {
+              "enabled": false,
+              "permission": {
+                "mode": "",
+                "userRole": []
+              },
+              "request": {
+                "datasource": "",
+                "payload": {}
+              }
+            },
+            "deleteRow": {
+              "enabled": false,
+              "permission": {
+                "mode": "",
+                "userRole": []
+              },
+              "request": {
+                "datasource": "",
+                "payload": {}
+              }
+            },
+            "expanded": false,
+            "items": [
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 60
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "number"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "id",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "ID",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "number"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 120
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "ip_address",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "IP Address",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 120
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "hostname",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Hostname",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 100
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "snmp_version",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "SNMP Version",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 100
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "status",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Status",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 100
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "has_community",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Has Community",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 120
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "group_name",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Group",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 90
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "is_public_ip",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Public IP",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 140
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "discovered_via",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Discovered Via",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 180
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "updated_at",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Updated At",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              }
+            ],
+            "name": "A",
+            "pagination": {
+              "enabled": true,
+              "mode": "client"
+            },
+            "showHeader": true,
+            "update": {
+              "datasource": "",
+              "payload": {}
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "gridPos": {
+        "h": 9,
+        "w": 18,
+        "x": 0,
+        "y": 31
+      },
+      "title": "Interface Traffic",
+      "type": "timeseries",
+      "datasource": {
+        "type": "influxdb",
+        "uid": "influxdb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb"
+          },
+          "rawSql": "SELECT time, hostname, \"ifDescr\", \"ifInOctets\", \"ifOutOctets\" FROM interface ORDER BY time DESC LIMIT 500",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 0,
+        "y": 40
+      },
+      "title": "Recent Traps",
+      "type": "volkovlabs-table-panel",
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity"
+          },
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "url": "http://config-api:8080/traps",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "",
+          "columns": [],
+          "parser": "backend"
+        }
+      ],
+      "options": {
+        "isColumnManagerAvailable": false,
+        "nestedObjects": [],
+        "saveUserPreference": false,
+        "showFiltersInColumnManager": false,
+        "showSortingInColumnManager": false,
+        "tables": [
+          {
+            "actionsColumnConfig": {
+              "alignment": "start",
+              "fontSize": "sm",
+              "label": "",
+              "width": {
+                "auto": false,
+                "value": 100
+              }
+            },
+            "addRow": {
+              "enabled": false,
+              "permission": {
+                "mode": "",
+                "userRole": []
+              },
+              "request": {
+                "datasource": "",
+                "payload": {}
+              }
+            },
+            "deleteRow": {
+              "enabled": false,
+              "permission": {
+                "mode": "",
+                "userRole": []
+              },
+              "request": {
+                "datasource": "",
+                "payload": {}
+              }
+            },
+            "expanded": false,
+            "items": [
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 60
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "number"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "id",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "ID",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "number"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 120
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "source_ip",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Source IP",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 200
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "oid",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Trap OID",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 300
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "payload",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Payload",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              },
+              {
+                "aggregation": "none",
+                "appearance": {
+                  "alignment": "start",
+                  "background": {
+                    "applyToRow": false
+                  },
+                  "colors": {},
+                  "header": {
+                    "fontSize": "md"
+                  },
+                  "width": {
+                    "auto": false,
+                    "min": 20,
+                    "value": 180
+                  },
+                  "wrap": true
+                },
+                "edit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false,
+                  "permission": {
+                    "mode": "",
+                    "userRole": []
+                  }
+                },
+                "enabled": true,
+                "field": {
+                  "name": "received_at",
+                  "source": "A"
+                },
+                "fileCell": {
+                  "size": "md",
+                  "text": "",
+                  "variant": "primary"
+                },
+                "filter": {
+                  "enabled": false,
+                  "mode": "client",
+                  "variable": ""
+                },
+                "footer": [],
+                "gauge": {
+                  "mode": "basic",
+                  "valueDisplayMode": "text",
+                  "valueSize": 14
+                },
+                "group": false,
+                "label": "Received At",
+                "newRowEdit": {
+                  "editor": {
+                    "type": "string"
+                  },
+                  "enabled": false
+                },
+                "objectId": "",
+                "showingRows": 0,
+                "sort": {
+                  "enabled": false
+                },
+                "type": "auto"
+              }
+            ],
+            "name": "A",
+            "pagination": {
+              "enabled": true,
+              "mode": "client"
+            },
+            "showHeader": true,
+            "update": {
+              "datasource": "",
+              "payload": {}
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

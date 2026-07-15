@@ -157,8 +157,14 @@ func (h *DeviceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	d.ID = id
-	writeJSON(w, http.StatusCreated, toDeviceResponse(d))
+	// Re-fetch rather than trust the in-memory d: created_at/updated_at are set by
+	// SQLite's DEFAULT CURRENT_TIMESTAMP, not by this process.
+	created, err := h.Store.Get(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, toDeviceResponse(created))
 }
 
 func (h *DeviceHandler) Update(w http.ResponseWriter, r *http.Request) {

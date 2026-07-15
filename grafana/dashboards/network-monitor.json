@@ -64,7 +64,7 @@
           "datasource": "",
           "header": [],
           "contentType": "application/json",
-          "code": "const elements = context.panel.elements;\nconst get = (id) => {\n  const el = elements.find((e) => e.id === id);\n  return el && el.value !== undefined && el.value !== null ? el.value : '';\n};\n\nconst deviceId = get('device_id');\nconst isEdit = !!deviceId;\n\nconst payload = {\n  ip_address: get('ip_address'),\n  hostname: get('hostname'),\n  snmp_version: get('snmp_version'),\n  group_name: get('group_name'),\n  v3_user: get('v3_user'),\n  v3_auth_protocol: get('v3_auth_protocol'),\n  v3_priv_protocol: get('v3_priv_protocol'),\n};\n\n// Only send credential fields if the user actually typed something -- leaving\n// them blank while editing must not overwrite the stored credential.\nconst community = get('community');\nconst v3AuthKey = get('v3_auth_key');\nconst v3PrivKey = get('v3_priv_key');\nif (!isEdit || community) payload.community = community;\nif (!isEdit || v3AuthKey) payload.v3_auth_key = v3AuthKey;\nif (!isEdit || v3PrivKey) payload.v3_priv_key = v3PrivKey;\n\nconst url = isEdit ? `http://localhost:8080/devices/${deviceId}` : 'http://localhost:8080/devices';\nconst method = isEdit ? 'PATCH' : 'POST';\n\nfetch(url, {\n  method,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(payload),\n})\n  .then(async (resp) => {\n    if (resp.ok) {\n      const body = await resp.json();\n      context.grafana.notifySuccess(['Saved', `Device ${body.ip_address} ${isEdit ? 'updated' : 'created'} -- status: ${body.status}.`]);\n      context.panel.initialRequest();\n    } else {\n      context.grafana.notifyError(['Error', `Failed to save device: HTTP ${resp.status}`]);\n    }\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Failed to save device: ${err}`]);\n  });",
+          "code": "const elements = context.panel.elements;\nconst get = (id) => {\n  const el = elements.find((e) => e.id === id);\n  return el && el.value !== undefined && el.value !== null ? el.value : '';\n};\n\nconst deviceId = get('device_id');\nconst isEdit = !!deviceId;\n\nif (!isEdit && !get('ip_address')) {\n  context.grafana.notifyError(['Error', 'IP Address is required to add a new device.']);\n  return;\n}\n\nconst payload = {\n  ip_address: get('ip_address'),\n  hostname: get('hostname'),\n  snmp_version: get('snmp_version'),\n  group_name: get('group_name'),\n  v3_user: get('v3_user'),\n  v3_auth_protocol: get('v3_auth_protocol'),\n  v3_priv_protocol: get('v3_priv_protocol'),\n};\n\n// Only send credential fields if the user actually typed something -- leaving\n// them blank while editing must not overwrite the stored credential.\nconst community = get('community');\nconst v3AuthKey = get('v3_auth_key');\nconst v3PrivKey = get('v3_priv_key');\nif (!isEdit || community) payload.community = community;\nif (!isEdit || v3AuthKey) payload.v3_auth_key = v3AuthKey;\nif (!isEdit || v3PrivKey) payload.v3_priv_key = v3PrivKey;\n\nconst url = isEdit ? `http://localhost:8080/devices/${deviceId}` : 'http://localhost:8080/devices';\nconst method = isEdit ? 'PATCH' : 'POST';\n\nfetch(url, {\n  method,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(payload),\n})\n  .then(async (resp) => {\n    if (resp.ok) {\n      const body = await resp.json();\n      context.grafana.notifySuccess(['Saved', `Device ${body.ip_address} ${isEdit ? 'updated' : 'created'} -- status: ${body.status}.`]);\n      context.panel.initialRequest();\n    } else {\n      const text = await resp.text().catch(() => '');\n      context.grafana.notifyError(['Error', `Failed to save device: HTTP ${resp.status}. ${text}`]);\n    }\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Failed to save device: ${err}`]);\n  });",
           "highlight": false,
           "highlightColor": "red",
           "confirm": false,
@@ -109,14 +109,14 @@
           {
             "uid": "device_id",
             "id": "device_id",
-            "title": "Device ID (blank = add new)",
-            "type": "string",
+            "title": "Edit existing device (ID)",
+            "type": "number",
             "section": "device",
-            "labelWidth": 14,
+            "labelWidth": 26,
             "width": null,
-            "tooltip": "Find the ID in the Devices table below. Leave blank to create a new device.",
+            "tooltip": "Enter the numeric ID from the Devices table below to load and edit that device. Leave blank (0) to create a new device instead. This is NOT the IP address.",
             "unit": "",
-            "value": ""
+            "value": 0
           },
           {
             "uid": "ip_address",
@@ -308,7 +308,7 @@
         "width": 0,
         "widthMode": "auto",
         "name": "deviceForm",
-        "elementValueChanged": "if (context.element.id === 'device_id') {\n  const id = context.element.value;\n  if (!id) {\n    return;\n  }\n  fetch(`http://localhost:8080/devices/${id}`)\n    .then((resp) => {\n      if (!resp.ok) {\n        throw new Error(`HTTP ${resp.status}`);\n      }\n      return resp.json();\n    })\n    .then((d) => {\n      context.panel.patchFormValue({\n        ip_address: d.ip_address || '',\n        hostname: d.hostname || '',\n        snmp_version: d.snmp_version || '',\n        group_name: d.group_name || '',\n        v3_user: d.v3_user || '',\n        v3_auth_protocol: d.v3_auth_protocol || '',\n        v3_priv_protocol: d.v3_priv_protocol || '',\n      });\n      context.grafana.notifySuccess(['Loaded', `Loaded device ${d.ip_address} (status: ${d.status}). Credential fields are left blank -- only fill them in if you want to change them.`]);\n    })\n    .catch((err) => {\n      context.grafana.notifyError(['Error', `Could not load device ${id}: ${err}`]);\n    });\n}"
+        "elementValueChanged": "const el = context.element;\n\nif (el.id !== 'device_id') {\n  return;\n}\n\nconst id = el.value;\n\nif (!id) {\n  // Cleared back to \"add new\" -- don't leave a previous device's data sitting\n  // in the other fields.\n  context.panel.patchFormValue({\n    ip_address: '',\n    hostname: '',\n    snmp_version: '',\n    group_name: '',\n    v3_user: '',\n    v3_auth_protocol: '',\n    v3_priv_protocol: '',\n  });\n  return;\n}\n\nfetch(`http://localhost:8080/devices/${id}`)\n  .then((resp) => {\n    if (!resp.ok) {\n      throw new Error(`HTTP ${resp.status}`);\n    }\n    return resp.json();\n  })\n  .then((d) => {\n    context.panel.patchFormValue({\n      ip_address: d.ip_address || '',\n      hostname: d.hostname || '',\n      snmp_version: d.snmp_version || '',\n      group_name: d.group_name || '',\n      v3_user: d.v3_user || '',\n      v3_auth_protocol: d.v3_auth_protocol || '',\n      v3_priv_protocol: d.v3_priv_protocol || '',\n    });\n    context.grafana.notifySuccess(['Loaded', `Loaded device #${id}: ${d.ip_address} (status: ${d.status}). Credential fields are left blank -- only fill them in if you want to change them.`]);\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Could not load device #${id}: ${err}. Check the ID in the Devices table below -- this field takes the numeric ID, not the IP address.`]);\n  });"
       }
     },
     {

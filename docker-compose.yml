@@ -73,6 +73,15 @@ services:
       # used for anything else). See README's threat-model section (Phase 7).
       - /var/run/docker.sock:/var/run/docker.sock
     env_file: .env
+    environment:
+      # Docker container names aren't scoped per compose project, so a value
+      # hardcoded to one project name (e.g. "beacon-v2-telegraf-1") is wrong
+      # for any deployment checked out under a different directory name — and
+      # if another unrelated container on the same host happens to have that
+      # exact name, this would SIGHUP the wrong container instead of failing.
+      # Default to this project's actual telegraf container name instead;
+      # only set TELEGRAF_CONTAINER_NAME in .env to override it.
+      - TELEGRAF_CONTAINER_NAME=${TELEGRAF_CONTAINER_NAME:-${COMPOSE_PROJECT_NAME}-telegraf-1}
     depends_on:
       - telegraf
 

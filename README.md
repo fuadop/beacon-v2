@@ -127,6 +127,30 @@ Type the device's ID into the same **Device ID** field, then click
 **Delete Device** (below Save Device). This asks for a native browser
 confirmation, then sends `DELETE /devices/{id}` and clears the form.
 
+## Colima users: enable the gRPC port-forwarder
+
+If you're running this on colima instead
+of Docker Desktop, `trap-receiver`'s UDP/162 listener will silently never
+receive anything, even though `docker compose ps` shows the port published
+and the sending router reports 0 drops. Colima's default port-forwarder
+(`ssh`) tunnels published ports over `ssh -L`, and SSH port forwarding is
+TCP-only by protocol design — it cannot carry UDP at all. Every other service
+here is TCP (config-api, Grafana, InfluxDB), so this only shows up on the one
+UDP-based component.
+
+Fix: start colima with the `grpc` port-forwarder, which does support UDP:
+
+```
+colima stop
+colima start --port-forwarder grpc
+```
+
+This restarts colima's VM, which briefly stops every running container until
+they come back up (they have `restart: unless-stopped`, so no further action
+needed). Docker Desktop, native Linux Docker, and Docker on Windows aren't
+affected — they publish ports via a privileged helper process that handles
+UDP natively, so this is colima-only.
+
 ## Health checks
 
 `config-api` and `trap-receiver` both expose `GET /healthz` (trap-receiver on

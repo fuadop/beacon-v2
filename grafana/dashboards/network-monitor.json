@@ -1,32 +1,7 @@
 {
   "id": null,
-  "uid": "network-monitor",
-  "title": "Network Monitor",
-  "tags": [
-    "network-monitor"
-  ],
-  "timezone": "browser",
-  "schemaVersion": 39,
-  "version": 0,
-  "refresh": "",
-  "time": {
-    "from": "now-6h",
-    "to": "now"
-  },
-  "templating": {
-    "list": []
-  },
   "panels": [
     {
-      "id": 1,
-      "gridPos": {
-        "h": 22,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "title": "Add / Edit Device",
-      "type": "volkovlabs-form-panel",
       "datasource": {
         "type": "datasource",
         "uid": "grafana"
@@ -35,123 +10,77 @@
         "defaults": {},
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "queryType": "randomWalk"
-        }
-      ],
+      "gridPos": {
+        "h": 22,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
       "options": {
-        "sync": true,
-        "initial": {
-          "method": "-",
-          "url": "",
-          "datasource": "",
-          "header": [],
-          "contentType": "application/json",
-          "code": "context.panel.enableSubmit();",
-          "highlight": false,
-          "highlightColor": "red",
-          "confirm": false,
-          "payloadMode": "all",
-          "getPayload": "return {}",
-          "payload": {}
-        },
-        "updateEnabled": "manual",
-        "update": {
-          "method": "-",
-          "url": "",
-          "datasource": "",
-          "header": [],
-          "contentType": "application/json",
-          "code": "const elements = context.panel.elements;\nconst get = (id) => {\n  const el = elements.find((e) => e.id === id);\n  return el && el.value !== undefined && el.value !== null ? el.value : '';\n};\n\nconst deviceId = get('device_id');\nconst isEdit = !!deviceId;\n\nif (!isEdit && !get('ip_address')) {\n  context.grafana.notifyError(['Error', 'IP Address is required to add a new device.']);\n  return;\n}\n\nconst payload = {\n  ip_address: get('ip_address'),\n  hostname: get('hostname'),\n  snmp_version: get('snmp_version'),\n  group_name: get('group_name'),\n  v3_user: get('v3_user'),\n  v3_auth_protocol: get('v3_auth_protocol'),\n  v3_priv_protocol: get('v3_priv_protocol'),\n};\n\n// Only send credential fields if the user actually typed something -- leaving\n// them blank while editing must not overwrite the stored credential.\nconst community = get('community');\nconst v3AuthKey = get('v3_auth_key');\nconst v3PrivKey = get('v3_priv_key');\nif (!isEdit || community) payload.community = community;\nif (!isEdit || v3AuthKey) payload.v3_auth_key = v3AuthKey;\nif (!isEdit || v3PrivKey) payload.v3_priv_key = v3PrivKey;\n\nconst url = isEdit ? `http://localhost:8080/devices/${deviceId}` : 'http://localhost:8080/devices';\nconst method = isEdit ? 'PATCH' : 'POST';\n\nfetch(url, {\n  method,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(payload),\n})\n  .then(async (resp) => {\n    if (resp.ok) {\n      const body = await resp.json();\n      context.grafana.notifySuccess(['Saved', `Device ${body.ip_address} ${isEdit ? 'updated' : 'created'} -- status: ${body.status}.`]);\n      context.panel.initialRequest();\n      context.grafana.refresh();\n    } else {\n      const text = await resp.text().catch(() => '');\n      context.grafana.notifyError(['Error', `Failed to save device: HTTP ${resp.status}. ${text}`]);\n    }\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Failed to save device: ${err}`]);\n  });",
-          "highlight": false,
-          "highlightColor": "red",
-          "confirm": false,
-          "payloadMode": "all",
-          "getPayload": "return {}",
-          "payload": {}
-        },
-        "resetAction": {
-          "mode": "initial",
-          "code": "",
-          "datasource": "",
-          "getPayload": "return {}",
-          "payload": {},
-          "confirm": false
-        },
         "buttonGroup": {
           "orientation": "center",
           "size": "md"
         },
-        "submit": {
-          "icon": "cloud-upload",
-          "backgroundColor": "purple",
-          "foregroundColor": "yellow",
-          "text": "Save Device",
-          "variant": "primary",
-          "orientation": "center",
-          "size": "md"
+        "confirmModal": {
+          "body": "Please confirm",
+          "cancel": "Cancel",
+          "columns": {
+            "include": [
+              "name",
+              "oldValue",
+              "newValue"
+            ],
+            "name": "Label",
+            "newValue": "New Value",
+            "oldValue": "Old Value"
+          },
+          "confirm": "Confirm",
+          "elementDisplayMode": "modified",
+          "title": "Confirm"
         },
-        "reset": {
-          "icon": "process",
-          "backgroundColor": "purple",
-          "foregroundColor": "yellow",
-          "text": "Clear",
-          "variant": "secondary"
-        },
-        "saveDefault": {
-          "icon": "save",
-          "text": "Save Default",
-          "variant": "hidden"
-        },
+        "elementValueChanged": "const el = context.element;\n\nif (el.id !== 'device_id') {\n  return;\n}\n\nconst id = el.value;\n\nif (!id) {\n  // Cleared back to \"add new\" -- don't leave a previous device's data sitting\n  // in the other fields.\n  context.panel.patchFormValue({\n    ip_address: '',\n    hostname: '',\n    snmp_version: '',\n    group_name: '',\n    v3_user: '',\n    v3_auth_protocol: '',\n    v3_priv_protocol: '',\n  });\n  return;\n}\n\nfetch(`http://localhost:8080/devices/${id}`)\n  .then((resp) => {\n    if (!resp.ok) {\n      throw new Error(`HTTP ${resp.status}`);\n    }\n    return resp.json();\n  })\n  .then((d) => {\n    context.panel.patchFormValue({\n      ip_address: d.ip_address || '',\n      hostname: d.hostname || '',\n      snmp_version: d.snmp_version || '',\n      group_name: d.group_name || '',\n      v3_user: d.v3_user || '',\n      v3_auth_protocol: d.v3_auth_protocol || '',\n      v3_priv_protocol: d.v3_priv_protocol || '',\n    });\n    context.grafana.notifySuccess(['Loaded', `Loaded device #${id}: ${d.ip_address} (status: ${d.status}). Credential fields are left blank -- only fill them in if you want to change them.`]);\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Could not load device #${id}: ${err}. Check the ID in the Devices table below -- this field takes the numeric ID, not the IP address.`]);\n  });",
         "elements": [
           {
-            "uid": "device_id",
             "id": "device_id",
-            "title": "Edit existing device (ID)",
-            "type": "number",
-            "section": "device",
             "labelWidth": 26,
-            "width": null,
+            "section": "device",
+            "title": "Edit existing device (ID)",
             "tooltip": "Enter the numeric ID from the Devices table below to load and edit that device. Leave blank (0) to create a new device instead. This is NOT the IP address.",
+            "type": "number",
+            "uid": "device_id",
             "unit": "",
-            "value": 0
+            "value": 0,
+            "width": null
           },
           {
-            "uid": "ip_address",
             "id": "ip_address",
+            "labelWidth": 14,
+            "section": "device",
             "title": "IP Address",
-            "type": "string",
-            "section": "device",
-            "labelWidth": 14,
-            "width": null,
             "tooltip": "",
+            "type": "string",
+            "uid": "ip_address",
             "unit": "",
-            "value": ""
+            "value": "",
+            "width": null
           },
           {
-            "uid": "hostname",
             "id": "hostname",
-            "title": "Hostname",
-            "type": "string",
-            "section": "device",
             "labelWidth": 14,
-            "width": null,
+            "section": "device",
+            "title": "Hostname",
             "tooltip": "",
+            "type": "string",
+            "uid": "hostname",
             "unit": "",
-            "value": ""
+            "value": "",
+            "width": null
           },
           {
-            "uid": "snmp_version",
+            "allowCustomValue": false,
             "id": "snmp_version",
-            "title": "SNMP Version",
-            "type": "select",
-            "section": "device",
             "labelWidth": 14,
-            "width": null,
-            "tooltip": "",
-            "unit": "",
             "options": [
               {
                 "id": "v1",
@@ -169,54 +98,54 @@
                 "value": "v3"
               }
             ],
-            "allowCustomValue": false
-          },
-          {
-            "uid": "group_name",
-            "id": "group_name",
-            "title": "Group",
-            "type": "string",
             "section": "device",
-            "labelWidth": 14,
-            "width": null,
+            "title": "SNMP Version",
             "tooltip": "",
-            "unit": "",
-            "value": ""
-          },
-          {
-            "uid": "community",
-            "id": "community",
-            "title": "Community (v1/v2c)",
-            "type": "password",
-            "section": "credentials",
-            "labelWidth": 14,
-            "width": null,
-            "tooltip": "Leave blank when editing to keep the existing stored value.",
-            "unit": "",
-            "value": ""
-          },
-          {
-            "uid": "v3_user",
-            "id": "v3_user",
-            "title": "v3 User",
-            "type": "string",
-            "section": "credentials",
-            "labelWidth": 14,
-            "width": null,
-            "tooltip": "",
-            "unit": "",
-            "value": ""
-          },
-          {
-            "uid": "v3_auth_protocol",
-            "id": "v3_auth_protocol",
-            "title": "v3 Auth Protocol",
             "type": "select",
-            "section": "credentials",
-            "labelWidth": 14,
-            "width": null,
-            "tooltip": "",
+            "uid": "snmp_version",
             "unit": "",
+            "width": null
+          },
+          {
+            "id": "group_name",
+            "labelWidth": 14,
+            "section": "device",
+            "title": "Group",
+            "tooltip": "",
+            "type": "string",
+            "uid": "group_name",
+            "unit": "",
+            "value": "",
+            "width": null
+          },
+          {
+            "id": "community",
+            "labelWidth": 14,
+            "section": "credentials",
+            "title": "Community (v1/v2c)",
+            "tooltip": "Leave blank when editing to keep the existing stored value.",
+            "type": "password",
+            "uid": "community",
+            "unit": "",
+            "value": "",
+            "width": null
+          },
+          {
+            "id": "v3_user",
+            "labelWidth": 14,
+            "section": "credentials",
+            "title": "v3 User",
+            "tooltip": "",
+            "type": "string",
+            "uid": "v3_user",
+            "unit": "",
+            "value": "",
+            "width": null
+          },
+          {
+            "allowCustomValue": false,
+            "id": "v3_auth_protocol",
+            "labelWidth": 14,
             "options": [
               {
                 "id": "MD5",
@@ -229,30 +158,30 @@
                 "value": "SHA"
               }
             ],
-            "allowCustomValue": false
-          },
-          {
-            "uid": "v3_auth_key",
-            "id": "v3_auth_key",
-            "title": "v3 Auth Key",
-            "type": "password",
             "section": "credentials",
-            "labelWidth": 14,
-            "width": null,
-            "tooltip": "Leave blank when editing to keep the existing stored value.",
-            "unit": "",
-            "value": ""
-          },
-          {
-            "uid": "v3_priv_protocol",
-            "id": "v3_priv_protocol",
-            "title": "v3 Priv Protocol",
-            "type": "select",
-            "section": "credentials",
-            "labelWidth": 14,
-            "width": null,
+            "title": "v3 Auth Protocol",
             "tooltip": "",
+            "type": "select",
+            "uid": "v3_auth_protocol",
             "unit": "",
+            "width": null
+          },
+          {
+            "id": "v3_auth_key",
+            "labelWidth": 14,
+            "section": "credentials",
+            "title": "v3 Auth Key",
+            "tooltip": "Leave blank when editing to keep the existing stored value.",
+            "type": "password",
+            "uid": "v3_auth_key",
+            "unit": "",
+            "value": "",
+            "width": null
+          },
+          {
+            "allowCustomValue": false,
+            "id": "v3_priv_protocol",
+            "labelWidth": 14,
             "options": [
               {
                 "id": "DES",
@@ -265,82 +194,128 @@
                 "value": "AES"
               }
             ],
-            "allowCustomValue": false
-          },
-          {
-            "uid": "v3_priv_key",
-            "id": "v3_priv_key",
-            "title": "v3 Priv Key",
-            "type": "password",
             "section": "credentials",
-            "labelWidth": 14,
-            "width": null,
-            "tooltip": "Leave blank when editing to keep the existing stored value.",
+            "title": "v3 Priv Protocol",
+            "tooltip": "",
+            "type": "select",
+            "uid": "v3_priv_protocol",
             "unit": "",
-            "value": ""
+            "width": null
           },
           {
-            "uid": "delete_button",
-            "id": "delete_button",
-            "title": "",
-            "type": "button",
-            "section": "device",
+            "id": "v3_priv_key",
             "labelWidth": 14,
-            "width": null,
-            "tooltip": "",
+            "section": "credentials",
+            "title": "v3 Priv Key",
+            "tooltip": "Leave blank when editing to keep the existing stored value.",
+            "type": "password",
+            "uid": "v3_priv_key",
             "unit": "",
+            "value": "",
+            "width": null
+          },
+          {
+            "backgroundColor": "",
             "buttonLabel": "Delete Device",
             "customCode": "const elements = context.panel.elements;\nconst idEl = elements.find((e) => e.id === 'device_id');\nconst id = idEl ? idEl.value : 0;\n\nif (!id) {\n  context.grafana.notifyError(['Error', 'Enter a Device ID above before deleting -- there is nothing to delete.']);\n  return;\n}\n\nif (!window.confirm(`Delete device #${id}? This cannot be undone.`)) {\n  return;\n}\n\nfetch(`http://localhost:8080/devices/${id}`, { method: 'DELETE' })\n  .then((resp) => {\n    if (resp.ok) {\n      context.grafana.notifySuccess(['Deleted', `Device #${id} deleted.`]);\n      context.panel.patchFormValue({\n        device_id: 0,\n        ip_address: '',\n        hostname: '',\n        snmp_version: '',\n        group_name: '',\n        v3_user: '',\n        v3_auth_protocol: '',\n        v3_priv_protocol: '',\n      });\n      context.grafana.refresh();\n    } else {\n      context.grafana.notifyError(['Error', `Failed to delete device: HTTP ${resp.status}`]);\n    }\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Failed to delete device: ${err}`]);\n  });",
-            "variant": "destructive",
-            "size": "md",
-            "show": "form",
-            "icon": "trash-alt",
-            "backgroundColor": "",
+            "disabled": false,
             "foregroundColor": "",
-            "disabled": false
+            "icon": "trash-alt",
+            "id": "delete_button",
+            "labelWidth": 14,
+            "section": "device",
+            "show": "form",
+            "size": "md",
+            "title": "",
+            "tooltip": "",
+            "type": "button",
+            "uid": "delete_button",
+            "unit": "",
+            "variant": "destructive",
+            "width": null
           }
         ],
+        "height": 0,
+        "heightMode": "auto",
+        "initial": {
+          "code": "context.panel.enableSubmit();",
+          "confirm": false,
+          "contentType": "application/json",
+          "datasource": "",
+          "getPayload": "return {}",
+          "header": [],
+          "highlight": false,
+          "highlightColor": "red",
+          "method": "-",
+          "payload": {},
+          "payloadMode": "all",
+          "url": ""
+        },
         "layout": {
           "orientation": "vertical",
           "padding": 10,
           "sectionVariant": "default",
           "variant": "single"
         },
-        "confirmModal": {
-          "title": "Confirm",
-          "body": "Please confirm",
-          "confirm": "Confirm",
-          "cancel": "Cancel",
-          "elementDisplayMode": "modified",
-          "columns": {
-            "include": [
-              "name",
-              "oldValue",
-              "newValue"
-            ],
-            "name": "Label",
-            "oldValue": "Old Value",
-            "newValue": "New Value"
-          }
-        },
-        "height": 0,
-        "heightMode": "auto",
-        "width": 0,
-        "widthMode": "auto",
         "name": "deviceForm",
-        "elementValueChanged": "const el = context.element;\n\nif (el.id !== 'device_id') {\n  return;\n}\n\nconst id = el.value;\n\nif (!id) {\n  // Cleared back to \"add new\" -- don't leave a previous device's data sitting\n  // in the other fields.\n  context.panel.patchFormValue({\n    ip_address: '',\n    hostname: '',\n    snmp_version: '',\n    group_name: '',\n    v3_user: '',\n    v3_auth_protocol: '',\n    v3_priv_protocol: '',\n  });\n  return;\n}\n\nfetch(`http://localhost:8080/devices/${id}`)\n  .then((resp) => {\n    if (!resp.ok) {\n      throw new Error(`HTTP ${resp.status}`);\n    }\n    return resp.json();\n  })\n  .then((d) => {\n    context.panel.patchFormValue({\n      ip_address: d.ip_address || '',\n      hostname: d.hostname || '',\n      snmp_version: d.snmp_version || '',\n      group_name: d.group_name || '',\n      v3_user: d.v3_user || '',\n      v3_auth_protocol: d.v3_auth_protocol || '',\n      v3_priv_protocol: d.v3_priv_protocol || '',\n    });\n    context.grafana.notifySuccess(['Loaded', `Loaded device #${id}: ${d.ip_address} (status: ${d.status}). Credential fields are left blank -- only fill them in if you want to change them.`]);\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Could not load device #${id}: ${err}. Check the ID in the Devices table below -- this field takes the numeric ID, not the IP address.`]);\n  });"
-      }
+        "reset": {
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "icon": "process",
+          "text": "Clear",
+          "variant": "secondary"
+        },
+        "resetAction": {
+          "code": "",
+          "confirm": false,
+          "datasource": "",
+          "getPayload": "return {}",
+          "mode": "initial",
+          "payload": {}
+        },
+        "saveDefault": {
+          "icon": "save",
+          "text": "Save Default",
+          "variant": "hidden"
+        },
+        "submit": {
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "icon": "cloud-upload",
+          "orientation": "center",
+          "size": "md",
+          "text": "Save Device",
+          "variant": "primary"
+        },
+        "sync": true,
+        "update": {
+          "code": "const elements = context.panel.elements;\nconst get = (id) => {\n  const el = elements.find((e) => e.id === id);\n  return el && el.value !== undefined && el.value !== null ? el.value : '';\n};\n\nconst deviceId = get('device_id');\nconst isEdit = !!deviceId;\n\nif (!isEdit && !get('ip_address')) {\n  context.grafana.notifyError(['Error', 'IP Address is required to add a new device.']);\n  return;\n}\n\nconst payload = {\n  ip_address: get('ip_address'),\n  hostname: get('hostname'),\n  snmp_version: get('snmp_version'),\n  group_name: get('group_name'),\n  v3_user: get('v3_user'),\n  v3_auth_protocol: get('v3_auth_protocol'),\n  v3_priv_protocol: get('v3_priv_protocol'),\n};\n\n// Only send credential fields if the user actually typed something -- leaving\n// them blank while editing must not overwrite the stored credential.\nconst community = get('community');\nconst v3AuthKey = get('v3_auth_key');\nconst v3PrivKey = get('v3_priv_key');\nif (!isEdit || community) payload.community = community;\nif (!isEdit || v3AuthKey) payload.v3_auth_key = v3AuthKey;\nif (!isEdit || v3PrivKey) payload.v3_priv_key = v3PrivKey;\n\nconst url = isEdit ? `http://localhost:8080/devices/${deviceId}` : 'http://localhost:8080/devices';\nconst method = isEdit ? 'PATCH' : 'POST';\n\nfetch(url, {\n  method,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(payload),\n})\n  .then(async (resp) => {\n    if (resp.ok) {\n      const body = await resp.json();\n      context.grafana.notifySuccess(['Saved', `Device ${body.ip_address} ${isEdit ? 'updated' : 'created'} -- status: ${body.status}.`]);\n      context.panel.initialRequest();\n      context.grafana.refresh();\n    } else {\n      const text = await resp.text().catch(() => '');\n      context.grafana.notifyError(['Error', `Failed to save device: HTTP ${resp.status}. ${text}`]);\n    }\n  })\n  .catch((err) => {\n    context.grafana.notifyError(['Error', `Failed to save device: ${err}`]);\n  });",
+          "confirm": false,
+          "contentType": "application/json",
+          "datasource": "",
+          "getPayload": "return {}",
+          "header": [],
+          "highlight": false,
+          "highlightColor": "red",
+          "method": "-",
+          "payload": {},
+          "payloadMode": "all",
+          "url": ""
+        },
+        "updateEnabled": "manual",
+        "width": 0,
+        "widthMode": "auto"
+      },
+      "targets": [
+        {
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "title": "Add / Edit Device",
+      "type": "volkovlabs-form-panel"
     },
     {
-      "id": 2,
-      "gridPos": {
-        "h": 10,
-        "w": 6,
-        "x": 12,
-        "y": 0
-      },
-      "title": "Polling Interval",
-      "type": "volkovlabs-form-panel",
       "datasource": {
         "type": "datasource",
         "uid": "grafana"
@@ -349,87 +324,41 @@
         "defaults": {},
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "queryType": "randomWalk"
-        }
-      ],
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 2,
       "options": {
-        "sync": true,
-        "initial": {
-          "method": "GET",
-          "url": "http://localhost:8080/settings/polling-interval",
-          "datasource": "",
-          "header": [],
-          "contentType": "application/json",
-          "code": "context.panel.enableSubmit();",
-          "highlight": false,
-          "highlightColor": "red",
-          "confirm": false,
-          "payloadMode": "all",
-          "getPayload": "return {}",
-          "payload": {}
-        },
-        "updateEnabled": "manual",
-        "update": {
-          "method": "POST",
-          "url": "http://localhost:8080/settings/polling-interval",
-          "datasource": "",
-          "header": [],
-          "contentType": "application/json",
-          "code": "if (context.panel.response && context.panel.response.ok) {\n  context.grafana.notifySuccess(['Saved', 'Polling interval updated.']);\n  context.panel.initialRequest();\n  context.grafana.refresh();\n} else {\n  context.grafana.notifyError(['Error', 'Failed to update polling interval.']);\n}",
-          "highlight": true,
-          "highlightColor": "red",
-          "confirm": false,
-          "payloadMode": "custom",
-          "getPayload": "return { polling_interval_seconds: Number(context.panel.elements.find(e => e.id === 'polling_interval_seconds').value) };",
-          "payload": {}
-        },
-        "resetAction": {
-          "mode": "initial",
-          "code": "",
-          "datasource": "",
-          "getPayload": "return {}",
-          "payload": {},
-          "confirm": false
-        },
         "buttonGroup": {
           "orientation": "center",
           "size": "md"
         },
-        "submit": {
-          "icon": "cloud-upload",
-          "backgroundColor": "purple",
-          "foregroundColor": "yellow",
-          "text": "Save",
-          "variant": "primary",
-          "orientation": "center",
-          "size": "md"
+        "confirmModal": {
+          "body": "Please confirm",
+          "cancel": "Cancel",
+          "columns": {
+            "include": [
+              "name",
+              "oldValue",
+              "newValue"
+            ],
+            "name": "Label",
+            "newValue": "New Value",
+            "oldValue": "Old Value"
+          },
+          "confirm": "Confirm",
+          "elementDisplayMode": "modified",
+          "title": "Confirm"
         },
-        "reset": {
-          "icon": "process",
-          "backgroundColor": "purple",
-          "foregroundColor": "yellow",
-          "text": "Reset",
-          "variant": "hidden"
-        },
-        "saveDefault": {
-          "icon": "save",
-          "text": "Save Default",
-          "variant": "hidden"
-        },
+        "elementValueChanged": "",
         "elements": [
           {
-            "uid": "polling_interval_seconds",
+            "allowCustomValue": false,
             "id": "polling_interval_seconds",
-            "title": "Polling Interval",
-            "type": "select",
-            "section": "settings",
             "labelWidth": 14,
-            "width": null,
-            "tooltip": "",
-            "unit": "",
             "options": [
               {
                 "id": "30",
@@ -457,50 +386,96 @@
                 "value": 600
               }
             ],
-            "allowCustomValue": false
+            "section": "settings",
+            "title": "Polling Interval",
+            "tooltip": "",
+            "type": "select",
+            "uid": "polling_interval_seconds",
+            "unit": "",
+            "width": null
           }
         ],
+        "height": 0,
+        "heightMode": "auto",
+        "initial": {
+          "code": "context.panel.enableSubmit();",
+          "confirm": false,
+          "contentType": "application/json",
+          "datasource": "",
+          "getPayload": "return {}",
+          "header": [],
+          "highlight": false,
+          "highlightColor": "red",
+          "method": "GET",
+          "payload": {},
+          "payloadMode": "all",
+          "url": "http://localhost:8080/settings/polling-interval"
+        },
         "layout": {
           "orientation": "vertical",
           "padding": 10,
           "sectionVariant": "default",
           "variant": "single"
         },
-        "confirmModal": {
-          "title": "Confirm",
-          "body": "Please confirm",
-          "confirm": "Confirm",
-          "cancel": "Cancel",
-          "elementDisplayMode": "modified",
-          "columns": {
-            "include": [
-              "name",
-              "oldValue",
-              "newValue"
-            ],
-            "name": "Label",
-            "oldValue": "Old Value",
-            "newValue": "New Value"
-          }
-        },
-        "height": 0,
-        "heightMode": "auto",
-        "width": 0,
-        "widthMode": "auto",
         "name": "pollingForm",
-        "elementValueChanged": ""
-      }
+        "reset": {
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "icon": "process",
+          "text": "Reset",
+          "variant": "hidden"
+        },
+        "resetAction": {
+          "code": "",
+          "confirm": false,
+          "datasource": "",
+          "getPayload": "return {}",
+          "mode": "initial",
+          "payload": {}
+        },
+        "saveDefault": {
+          "icon": "save",
+          "text": "Save Default",
+          "variant": "hidden"
+        },
+        "submit": {
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "icon": "cloud-upload",
+          "orientation": "center",
+          "size": "md",
+          "text": "Save",
+          "variant": "primary"
+        },
+        "sync": true,
+        "update": {
+          "code": "if (context.panel.response && context.panel.response.ok) {\n  context.grafana.notifySuccess(['Saved', 'Polling interval updated.']);\n  context.panel.initialRequest();\n  context.grafana.refresh();\n} else {\n  context.grafana.notifyError(['Error', 'Failed to update polling interval.']);\n}",
+          "confirm": false,
+          "contentType": "application/json",
+          "datasource": "",
+          "getPayload": "return { polling_interval_seconds: Number(context.panel.elements.find(e => e.id === 'polling_interval_seconds').value) };",
+          "header": [],
+          "highlight": true,
+          "highlightColor": "red",
+          "method": "POST",
+          "payload": {},
+          "payloadMode": "custom",
+          "url": "http://localhost:8080/settings/polling-interval"
+        },
+        "updateEnabled": "manual",
+        "width": 0,
+        "widthMode": "auto"
+      },
+      "targets": [
+        {
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ],
+      "title": "Polling Interval",
+      "type": "volkovlabs-form-panel"
     },
     {
-      "id": 3,
-      "gridPos": {
-        "h": 9,
-        "w": 18,
-        "x": 0,
-        "y": 22
-      },
-      "title": "Devices",
-      "type": "volkovlabs-table-panel",
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
         "uid": "infinity"
@@ -509,25 +484,13 @@
         "defaults": {},
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "infinity"
-          },
-          "type": "json",
-          "source": "url",
-          "format": "table",
-          "url": "http://config-api:8080/devices",
-          "url_options": {
-            "method": "GET"
-          },
-          "root_selector": "",
-          "columns": [],
-          "parser": "backend"
-        }
-      ],
+      "gridPos": {
+        "h": 9,
+        "w": 18,
+        "x": 0,
+        "y": 22
+      },
+      "id": 3,
       "options": {
         "isColumnManagerAvailable": false,
         "nestedObjects": [],
@@ -1222,18 +1185,30 @@
             }
           }
         ]
-      }
+      },
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity"
+          },
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "http://config-api:8080/devices",
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ],
+      "title": "Devices",
+      "type": "volkovlabs-table-panel"
     },
     {
-      "id": 4,
-      "gridPos": {
-        "h": 9,
-        "w": 18,
-        "x": 0,
-        "y": 31
-      },
-      "title": "Interface Traffic",
-      "type": "timeseries",
       "datasource": {
         "type": "influxdb",
         "uid": "influxdb"
@@ -1244,29 +1219,29 @@
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 9,
+        "w": 18,
+        "x": 0,
+        "y": 31
+      },
+      "id": 4,
       "options": {},
       "targets": [
         {
-          "refId": "A",
           "datasource": {
             "type": "influxdb",
             "uid": "influxdb"
           },
+          "format": "table",
           "rawSql": "SELECT time, hostname, \"ifDescr\", \"ifInOctets\", \"ifOutOctets\" FROM interface ORDER BY time DESC LIMIT 500",
-          "format": "table"
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "Interface Traffic",
+      "type": "timeseries"
     },
     {
-      "id": 5,
-      "gridPos": {
-        "h": 8,
-        "w": 18,
-        "x": 0,
-        "y": 40
-      },
-      "title": "Recent Traps",
-      "type": "volkovlabs-table-panel",
       "datasource": {
         "type": "yesoreyeram-infinity-datasource",
         "uid": "infinity"
@@ -1275,25 +1250,13 @@
         "defaults": {},
         "overrides": []
       },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "yesoreyeram-infinity-datasource",
-            "uid": "infinity"
-          },
-          "type": "json",
-          "source": "url",
-          "format": "table",
-          "url": "http://config-api:8080/traps",
-          "url_options": {
-            "method": "GET"
-          },
-          "root_selector": "",
-          "columns": [],
-          "parser": "backend"
-        }
-      ],
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 0,
+        "y": 40
+      },
+      "id": 5,
       "options": {
         "isColumnManagerAvailable": false,
         "nestedObjects": [],
@@ -1668,7 +1631,44 @@
             }
           }
         ]
-      }
+      },
+      "targets": [
+        {
+          "columns": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity"
+          },
+          "format": "table",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "http://config-api:8080/traps",
+          "url_options": {
+            "method": "GET"
+          }
+        }
+      ],
+      "title": "Recent Traps",
+      "type": "volkovlabs-table-panel"
     }
-  ]
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": [
+    "network-monitor"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Network Monitor",
+  "uid": "network-monitor",
+  "version": 5
 }

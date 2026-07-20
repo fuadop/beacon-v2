@@ -310,7 +310,7 @@
             "mode": "thresholds"
           },
           "custom": {
-            "align": "auto",
+            "align": "left",
             "cellOptions": {
               "type": "auto"
             },
@@ -348,7 +348,35 @@
               }
             ]
           }
-        }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Inbound Throughput (Mbps)",
+              "scope": "series"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 204
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Outbound Throughput (Mbps)",
+              "scope": "series"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 219
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 9,
@@ -390,9 +418,43 @@
               }
             ]
           }
+        },
+        {
+          "dataset": "iox",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "influxdb"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH deltas AS (\n  SELECT\n    agent_host, \"ifDescr\", \"ifIndex\", time, \"ifSpeed\",\n    \"ifInOctets\"  - LAG(\"ifInOctets\")  OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time) AS in_delta,\n    \"ifOutOctets\" - LAG(\"ifOutOctets\") OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time) AS out_delta,\n    EXTRACT(EPOCH FROM (time - LAG(time) OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time))) AS delta_secs\n  FROM interface\n  WHERE agent_host = '$loopback'\n),\nrates AS (\n  SELECT\n    agent_host, \"ifDescr\", \"ifIndex\", time, \"ifSpeed\",\n    (CASE WHEN in_delta  < 0 THEN in_delta  + 4294967296 ELSE in_delta  END) * 8.0 / delta_secs AS inbound_bps,\n    (CASE WHEN out_delta < 0 THEN out_delta + 4294967296 ELSE out_delta END) * 8.0 / delta_secs AS outbound_bps\n  FROM deltas\n  WHERE in_delta IS NOT NULL AND delta_secs > 0\n)\nSELECT DISTINCT ON (\"ifIndex\")\n  \"ifDescr\" as \"Interface\",\n  ROUND(inbound_bps / 1e6, 4)  AS \"Inbound Throughput (Mbps)\",\n  ROUND(outbound_bps / 1e6, 4) AS \"Outbound Throughput (Mbps)\",\n  CASE WHEN \"ifSpeed\" > 0 AND \"ifSpeed\" < 4294967295\n       THEN ROUND((inbound_bps + outbound_bps) * 100.0 / \"ifSpeed\", 4)\n       ELSE NULL END AS \"Total Utilization (%)\"\nFROM rates\nORDER BY \"ifIndex\", time DESC;",
+          "refId": "B",
+          "sql": {
+            "columns": [
+              {
+                "parameters": [],
+                "type": "function"
+              }
+            ],
+            "groupBy": [
+              {
+                "property": {
+                  "type": "string"
+                },
+                "type": "groupBy"
+              }
+            ]
+          }
         }
       ],
       "title": "Interfaces",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        }
+      ],
       "type": "table"
     }
   ],
@@ -543,5 +605,5 @@
   "timezone": "browser",
   "title": "Router Detail",
   "uid": "adq8k67",
-  "version": 14
+  "version": 16
 }

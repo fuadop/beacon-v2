@@ -117,7 +117,7 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 7,
+        "w": 6,
         "x": 0,
         "y": 0
       },
@@ -191,6 +191,28 @@
       "type": "piechart"
     },
     {
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 6,
+        "y": 0
+      },
+      "id": 5,
+      "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
+        "content": "```\nsnmp-server host [YOUR-DEVICE-IP] version 2c public\nsnmp-server enable traps\n```",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [],
+      "title": "Alert/Trap Setup",
+      "type": "text"
+    },
+    {
       "datasource": {
         "type": "influxdb",
         "uid": "influxdb"
@@ -256,7 +278,7 @@
       },
       "gridPos": {
         "h": 9,
-        "w": 15,
+        "w": 10,
         "x": 0,
         "y": 6
       },
@@ -313,6 +335,131 @@
       ],
       "title": "Aggregated WAN Traffic",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "infinity"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 14,
+        "x": 10,
+        "y": 6
+      },
+      "id": 4,
+      "options": {
+        "dedupStrategy": "none",
+        "enableInfiniteScrolling": false,
+        "enableLogDetails": true,
+        "fontSize": "default",
+        "prettifyLogMessage": true,
+        "showControls": false,
+        "showFieldSelector": false,
+        "showLabels": false,
+        "showLevel": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "syntaxHighlighting": false,
+        "timestampResolution": "ms",
+        "unwrappedColumns": false,
+        "wrapLogMessage": false
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        {
+          "columns": [
+            {
+              "selector": "ReceivedAt",
+              "text": "timestamp",
+              "type": "timestamp"
+            },
+            {
+              "selector": "ID",
+              "text": "id",
+              "type": "number"
+            },
+            {
+              "selector": "SourceIP",
+              "text": "source_ip",
+              "type": "string"
+            },
+            {
+              "selector": "Name",
+              "text": "name",
+              "type": "string"
+            },
+            {
+              "selector": "OID",
+              "text": "oid",
+              "type": "string"
+            }
+          ],
+          "computed_columns": [
+            {
+              "selector": "\"warn\"",
+              "text": "level",
+              "type": "string"
+            },
+            {
+              "selector": "\"[\" + source_ip + \"] \" + oid + \" (\" + name + \")\"",
+              "text": "body",
+              "type": "string"
+            }
+          ],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "infinity"
+          },
+          "filters": [],
+          "format": "table",
+          "global_query_id": "",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "http://config-api:8080/traps/readable",
+          "url_options": {
+            "data": "",
+            "method": "GET"
+          }
+        }
+      ],
+      "title": "Alerts",
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "id",
+                "timestamp",
+                "level",
+                "body",
+                "name",
+                "oid",
+                "source_ip"
+              ]
+            }
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {
+              "body": 2,
+              "id": 0,
+              "level": 3,
+              "timestamp": 1
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "logs"
     },
     {
       "datasource": {
@@ -488,5 +635,5 @@
   "timezone": "browser",
   "title": "Global Network Operations",
   "uid": "addwth2",
-  "version": 13
+  "version": 21
 }

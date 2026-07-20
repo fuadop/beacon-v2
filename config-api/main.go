@@ -35,9 +35,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	collectorIP := os.Getenv("COLLECTOR_IP")
+
 	deviceHandler := &handlers.DeviceHandler{Store: store.NewDeviceStore(db), Key: key}
 	settingsHandler := &handlers.SettingsHandler{Store: store.NewSettingsStore(db)}
 	trapsHandler := &handlers.TrapsHandler{Store: store.NewTrapStore(trapsDB)}
+	collectorHandler := &handlers.CollectorHandler{IP: collectorIP}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +58,7 @@ func main() {
 	mux.HandleFunc("POST /settings/credential-duplication", settingsHandler.SetCredentialDuplication)
 	mux.HandleFunc("GET /traps", trapsHandler.List)
 	mux.HandleFunc("GET /traps/readable", trapsHandler.ListReadable)
+	mux.HandleFunc("GET /collector-ip", collectorHandler.Get)
 
 	addr := ":8080"
 	logger.Info("config-api listening", "addr", addr, "db", dbPath)

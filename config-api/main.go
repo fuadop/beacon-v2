@@ -54,6 +54,7 @@ func main() {
 	mux.HandleFunc("GET /settings/credential-duplication", settingsHandler.GetCredentialDuplication)
 	mux.HandleFunc("POST /settings/credential-duplication", settingsHandler.SetCredentialDuplication)
 	mux.HandleFunc("GET /traps", trapsHandler.List)
+	mux.HandleFunc("GET /traps/readable", trapsHandler.ListReadable)
 
 	addr := ":8080"
 	logger.Info("config-api listening", "addr", addr, "db", dbPath)

@@ -11,11 +11,12 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	logger.Info("chat-api starting")
 
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
+	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
-		logger.Error("ANTHROPIC_API_KEY is not set")
+		logger.Error("GEMINI_API_KEY is not set")
 		os.Exit(1)
 	}
+	model := envOrDefault("GEMINI_MODEL", "gemini-2.5-flash")
 
 	influxURL := envOrDefault("INFLUXDB_URL", "http://influxdb:8181")
 	influxToken := os.Getenv("INFLUXDB_TOKEN")
@@ -28,7 +29,7 @@ func main() {
 	}
 
 	handler := &chatHandler{
-		anthropic:   newAnthropicClient(apiKey),
+		gemini:      newGeminiClient(apiKey, model),
 		tools:       tc,
 		rateLimiter: newRateLimiter(10, time.Minute),
 		logger:      logger,

@@ -8,7 +8,7 @@ import (
 )
 
 type chatHandler struct {
-	anthropic   *anthropicClient
+	gemini      *geminiClient
 	tools       toolContext
 	rateLimiter *rateLimiter
 	logger      *slog.Logger
@@ -43,7 +43,7 @@ func (h *chatHandler) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, err := runChat(h.anthropic, h.tools, req.Question)
+	answer, err := runChat(h.gemini, h.tools, req.Question)
 	if err != nil {
 		h.logger.Error("chat request failed", "error", err)
 		writeChatError(w, http.StatusInternalServerError, "couldn't answer that: "+err.Error())

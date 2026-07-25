@@ -19,22 +19,14 @@ type toolContext struct {
 // bounded -- this is the ceiling under which that limit isn't hit.
 const maxQueryHours = 72
 
-// anthropicTool is the JSON shape Anthropic's Messages API expects for each
-// tool definition (name/description/input_schema).
-type anthropicTool struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	InputSchema map[string]any `json:"input_schema"`
-}
-
-func toolDefinitions() []anthropicTool {
-	return []anthropicTool{
+func toolDefinitions() []geminiFunctionDeclaration {
+	return []geminiFunctionDeclaration{
 		{
 			Name: "list_devices",
 			Description: "List every monitored device with its hostname, IP, status, and group. " +
 				"Call this first to resolve a name like \"R1\" to a real device, or to answer " +
 				"\"what devices are being monitored\".",
-			InputSchema: map[string]any{
+			Parameters: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
 			},
@@ -50,7 +42,7 @@ func toolDefinitions() []anthropicTool {
 				"column first if you don't already know the device's interface names, or use rank_devices " +
 				"style history to discover them. For the memory table, sub_filter is optional and defaults " +
 				"to the \"Processor\" pool, which is the one that reflects actual device load.",
-			InputSchema: map[string]any{
+			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"device":      map[string]any{"type": "string", "description": "Device hostname, hostname prefix (e.g. \"R1\"), or IP."},
@@ -71,7 +63,7 @@ func toolDefinitions() []anthropicTool {
 				"query_metric. Uses the average value over the window for gauge metrics (e.g. cpu1min), or " +
 				"average throughput for counter metrics like ifInOctets/ifOutOctets (device-wide, summed " +
 				"across interfaces).",
-			InputSchema: map[string]any{
+			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"table":  map[string]any{"type": "string", "enum": []string{"cpu", "memory", "interface"}},
@@ -89,7 +81,7 @@ func toolDefinitions() []anthropicTool {
 				"setup, not the real originating router. Always tell the user this when reporting trap " +
 				"counts/history: you can say how many of a given trap type happened, but not confidently " +
 				"say which router caused which one.",
-			InputSchema: map[string]any{
+			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"hours": map[string]any{"type": "number", "description": fmt.Sprintf("How many hours back to look. Max %d.", maxQueryHours)},

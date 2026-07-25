@@ -1,6 +1,10 @@
 # Plan: Network Posture Chatbot in Grafana
 
-Status: planned, not implemented.
+Status: implemented (`chat-api` service + `grafana/dashboards/network-assistant.json`).
+Requires `ANTHROPIC_API_KEY` to be set in `.env` before `chat-api` will start --
+it fails fast rather than running without one. Verified end-to-end at the UI
+level (question submission, error handling, answer display); the actual
+LLM round trip has not yet been exercised with a real API key.
 
 ## Goal
 
@@ -36,10 +40,10 @@ forms in `network-monitor.json`. No new Grafana plugin, no signing process.
 
 | Tool | Purpose |
 |---|---|
-| `list_devices()` | Identity resolution ("R1" -> hostname/agent_host), plus `sysLocation`/`sysContact` metadata (e.g. "Toronto Data Center, Rack 1Ab") so location/contact-based questions work. Calls `config-api`'s `GET /devices`. |
-| `query_metric(device, table, column, aggregation, time_range, threshold?)` | Generalized single-device query against *any* collected metric. `table`/`column` are validated against a whitelist built from the actual InfluxDB schema (`cpu.cpu1min`, `memory.ciscoMemoryPoolUsed`, `interface.ifOperStatus`, etc.), never free-form. `aggregation` is one of `current` (latest value), `history` (raw time series), `avg`/`max`/`min`, or `count_above_threshold` (needs a `threshold` param) -- this single tool covers what would otherwise be three or four narrower ones (current value, history, threshold-crossing count), and works for every metric already in InfluxDB, not just a hardcoded subset. |
-| `rank_devices(table, column, aggregation, time_range)` | Cross-device ranking for any collected metric -- "what router has the highest load" generalizes to "highest anything," not just CPU. |
-| `get_recent_traps(device, hours)` | Trap history ("has R1 flapped recently?"). Traps are categorical events, not a numeric series, so they don't fit the `query_metric` shape and stay a separate tool. Reuses the existing `internal/snmp.TrapName()` mapping. |
+| `list_devices()` | Identity resolution ("R1" -> hostname/agent_host/status/group). Calls `config-api`'s `GET /devices`. **Deviation from the original plan**: does NOT include `sysLocation`/`sysContact` -- that data isn't stored anywhere yet (not in the devices table, not in InfluxDB), and fetching it live would mean either giving `chat-api` SNMP-credential-decrypt access (widening this service's trust boundary the same way the earlier community-string discussion in this project deliberately avoided) or adding it to `config-api`'s probe path and devices table first. Left as a follow-up rather than silently implemented against either option. |
+| `query_metric(device, table, column, aggregation, time_range, threshold?)` | Generalized single-device query against *any* collected metric. `table`/`column` are validated against a whitelist built from the actual InfluxDB schema (`cpu.cpu1min`, `memory.ciscoMemoryPoolUsed`, `interface.ifOperStatus`, etc.), never free-form. `aggregation` is one of `current` (latest value), `history` (raw time series), `avg`/`max`/`min`, `count_above_threshold` (needs a `threshold` param), or `rate` (Mbps throughput for byte counters, using the same wraparound-safe delta pattern as the earlier throughput queries) -- this single tool covers what would otherwise be several narrower ones, and works for every metric already in InfluxDB, not just a hardcoded subset. |
+| `rank_devices(table, column, hours)` | Cross-device ranking for any collected metric -- "what router has the highest load" generalizes to "highest anything," not just CPU. |
+| `get_recent_traps(hours)` | Trap history ("has R1 flapped recently?"). Traps are categorical events, not a numeric series, so they don't fit the `query_metric` shape and stay a separate tool. Reuses the existing `internal/snmp.TrapName()` mapping. No `device` parameter -- source-IP attribution is unreliable (see the earlier colima/NAT discussion), so this returns all recent traps across every device rather than pretending to filter by one. |
 
 Every tool takes a closed set of enum-like parameters (known device names,
 known table/column names from the real schema). `chat-api` validates these

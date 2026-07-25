@@ -1,0 +1,207 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 18,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "buttonGroup": {
+          "orientation": "center",
+          "size": "md"
+        },
+        "confirmModal": {
+          "body": "Please confirm",
+          "cancel": "Cancel",
+          "columns": {
+            "include": [
+              "name",
+              "oldValue",
+              "newValue"
+            ],
+            "name": "Label",
+            "newValue": "New Value",
+            "oldValue": "Old Value"
+          },
+          "confirm": "Confirm",
+          "elementDisplayMode": "modified",
+          "title": "Confirm"
+        },
+        "elementValueChanged": "",
+        "elements": [
+          {
+            "id": "question",
+            "labelWidth": 20,
+            "section": "chat",
+            "title": "Ask about your network",
+            "tooltip": "e.g. \"what is the CPU usage of R1?\", \"how many times has R1 spiked in the past 6 hours?\", \"what router has the highest load?\"",
+            "type": "string",
+            "uid": "question",
+            "unit": "",
+            "value": "",
+            "width": null
+          },
+          {
+            "id": "answer",
+            "labelWidth": 20,
+            "section": "chat",
+            "title": "Answer",
+            "tooltip": "",
+            "type": "string",
+            "uid": "answer",
+            "unit": "",
+            "value": "",
+            "width": null
+          }
+        ],
+        "height": 0,
+        "heightMode": "auto",
+        "initial": {
+          "code": "context.panel.enableSubmit();",
+          "confirm": false,
+          "contentType": "application/json",
+          "datasource": "",
+          "getPayload": "return {}",
+          "header": [],
+          "highlight": false,
+          "highlightColor": "red",
+          "method": "-",
+          "payload": {},
+          "payloadMode": "all",
+          "url": ""
+        },
+        "layout": {
+          "orientation": "vertical",
+          "padding": 10,
+          "sectionVariant": "default",
+          "variant": "single"
+        },
+        "name": "chatForm",
+        "reset": {
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "icon": "process",
+          "text": "Reset",
+          "variant": "hidden"
+        },
+        "resetAction": {
+          "code": "",
+          "confirm": false,
+          "datasource": "",
+          "getPayload": "return {}",
+          "mode": "initial",
+          "payload": {}
+        },
+        "saveDefault": {
+          "icon": "save",
+          "text": "Save Default",
+          "variant": "hidden"
+        },
+        "submit": {
+          "backgroundColor": "purple",
+          "foregroundColor": "yellow",
+          "icon": "arrow-right",
+          "orientation": "center",
+          "size": "md",
+          "text": "Ask",
+          "variant": "primary"
+        },
+        "sync": true,
+        "update": {
+          "code": "const elements = context.panel.elements;\nconst question = elements.find((e) => e.id === 'question').value;\n\nif (!question) {\n  context.grafana.notifyError(['Error', 'Type a question first.']);\n  return;\n}\n\ncontext.panel.patchFormValue({ answer: 'Thinking...' });\n\nfetch('http://localhost:8082/chat', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ question }),\n})\n  .then(async (resp) => {\n    const body = await resp.json().catch(() => ({}));\n    if (resp.ok) {\n      context.panel.patchFormValue({ answer: body.answer || '(empty answer)' });\n    } else {\n      const msg = body.error || `HTTP ${resp.status}`;\n      context.panel.patchFormValue({ answer: `Error: ${msg}` });\n      context.grafana.notifyError(['Error', msg]);\n    }\n  })\n  .catch((err) => {\n    context.panel.patchFormValue({ answer: `Error: ${err}` });\n    context.grafana.notifyError(['Error', `Failed to reach chat-api: ${err}`]);\n  });\n",
+          "confirm": false,
+          "contentType": "application/json",
+          "datasource": "",
+          "getPayload": "return {}",
+          "header": [],
+          "highlight": false,
+          "highlightColor": "red",
+          "method": "-",
+          "payload": {},
+          "payloadMode": "all",
+          "url": ""
+        },
+        "updateEnabled": "manual",
+        "width": 0,
+        "widthMode": "auto"
+      },
+      "pluginVersion": "6.3.5",
+      "title": "Ask about your network",
+      "type": "volkovlabs-form-panel",
+      "targets": [
+        {
+          "queryType": "randomWalk",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "content": "## Network Assistant\n\nAsk questions about CPU, memory, interface throughput, and recent traps across R1/R2.\n\n**Examples:**\n- what is the CPU usage of R1?\n- how many times has R1 spiked in the past 6 hours?\n- what router has the highest load?\n- has there been any link flapping recently?\n\n**Known limits:** traps can't currently be attributed to a specific device (see docs/chatbot-plan.md); answers take a few seconds (no streaming).",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.0",
+      "title": "About",
+      "type": "text"
+    }
+  ],
+  "preload": false,
+  "refresh": "",
+  "schemaVersion": 42,
+  "tags": [],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Network Assistant",
+  "uid": "network-assistant",
+  "version": 1
+}

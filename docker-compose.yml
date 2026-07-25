@@ -96,6 +96,18 @@ services:
       - traps-db:/data
     env_file: .env
 
+  chat-api:
+    build:
+      context: .
+      dockerfile: chat-api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    env_file: .env
+    depends_on:
+      - influxdb
+      - config-api
+
 volumes:
   influxdb-data:
   grafana-data:

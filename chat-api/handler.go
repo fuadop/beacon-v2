@@ -14,8 +14,20 @@ type chatHandler struct {
 	logger      *slog.Logger
 }
 
+// maxHistoryTurns caps how much prior conversation a single request can
+// carry, trimmed server-side regardless of what the client sends -- every
+// turn resent is extra tokens Gemini has to reprocess, and this is the one
+// place in the request a caller could otherwise make arbitrarily large.
+const maxHistoryTurns = 20
+
+type historyTurn struct {
+	Role string `json:"role"` // "user" or "assistant"
+	Text string `json:"text"`
+}
+
 type chatRequest struct {
-	Question string `json:"question"`
+	Question string        `json:"question"`
+	History  []historyTurn `json:"history"`
 }
 
 type chatResponse struct {
@@ -43,7 +55,12 @@ func (h *chatHandler) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	answer, err := runChat(h.gemini, h.tools, req.Question, h.logger)
+	history := req.History
+	if len(history) > maxHistoryTurns {
+		history = history[len(history)-maxHistoryTurns:]
+	}
+
+	answer, err := runChat(h.gemini, h.tools, req.Question, history, h.logger)
 	if err != nil {
 		h.logger.Error("chat request failed", "error", err)
 		writeChatError(w, http.StatusInternalServerError, "couldn't answer that: "+err.Error())

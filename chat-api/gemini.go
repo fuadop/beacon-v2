@@ -152,10 +152,13 @@ func (c *geminiClient) call(contents []geminiContent, tools []geminiTool) (*gemi
 // answer or maxToolIterations is hit (a hard cost/runaway-loop cap, not
 // just a correctness detail -- every iteration is an API call, and while
 // Gemini's free tier has no per-call charge, it's still rate-limited).
-func runChat(client *geminiClient, tc toolContext, question string, logger *slog.Logger) (string, error) {
-	contents := []geminiContent{
-		{Role: "user", Parts: []geminiPart{{Text: question}}},
-	}
+//
+// history carries prior turns so follow-up questions ("how did you find
+// that?") have real context -- chat-api itself still holds no session
+// state; the client (the chat panel's own sessionStorage transcript)
+// resends whatever history it wants considered on every request.
+func runChat(client *geminiClient, tc toolContext, question string, history []historyTurn, logger *slog.Logger) (string, error) {
+	contents := buildInitialContents(question, history)
 	tools := []geminiTool{{FunctionDeclarations: toolDefinitions()}}
 
 	for i := 0; i < maxToolIterations; i++ {
@@ -193,6 +196,23 @@ func runChat(client *geminiClient, tc toolContext, question string, logger *slog
 	}
 
 	return "", fmt.Errorf("couldn't answer within %d tool calls -- try a narrower question", maxToolIterations)
+}
+
+// buildInitialContents converts a client-supplied history (role "user" or
+// "assistant") plus the new question into Gemini's turn format. Any role
+// other than "user" maps to "model" -- the history comes from the chat
+// panel's own transcript, which only ever labels turns "user"/"assistant".
+func buildInitialContents(question string, history []historyTurn) []geminiContent {
+	contents := make([]geminiContent, 0, len(history)+1)
+	for _, turn := range history {
+		role := "model"
+		if turn.Role == "user" {
+			role = "user"
+		}
+		contents = append(contents, geminiContent{Role: role, Parts: []geminiPart{{Text: turn.Text}}})
+	}
+	contents = append(contents, geminiContent{Role: "user", Parts: []geminiPart{{Text: question}}})
+	return contents
 }
 
 // buildFunctionResponsePart wraps a tool's result (or error) into the object

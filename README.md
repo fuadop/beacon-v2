@@ -64,13 +64,25 @@ token in `.env` as `INFLUXDB_TOKEN`, then restart `config-watcher` and
 docker compose exec influxdb influxdb3 create token --admin
 # copy the token into .env's INFLUXDB_TOKEN, then:
 docker compose up -d influxdb  # picks up the token from .env
-docker compose exec influxdb sh -c 'influxdb3 create database "$INFLUXDB_DATABASE" --token "$INFLUXDB_TOKEN"'
+docker compose exec influxdb sh -c 'influxdb3 create database "$INFLUXDB_DATABASE" --retention-period 7d --token "$INFLUXDB_TOKEN"'
 docker compose up -d config-watcher grafana
 ```
 
 Without that `create database` step, the InfluxDB-backed panel errors with
 `database not found: network_monitor` — Telegraf's writes don't create the
 database on their own.
+
+`--retention-period 7d` keeps InfluxDB from accumulating data (and Parquet
+files) forever. InfluxDB 3 Core caps how many Parquet files a single query
+can scan — with 30s polling across cpu/memory/interface tables, an
+unbounded database crosses that cap in under two weeks, at which point every
+dashboard panel and chatbot query starts failing outright with "Query would
+scan N Parquet files, exceeding the file limit" rather than just being slow.
+7 days keeps the file count bounded indefinitely. To change it later:
+
+```
+docker compose exec influxdb influxdb3 update database --database "$INFLUXDB_DATABASE" --retention-period 14d --token "$INFLUXDB_TOKEN"
+```
 
 Grafana is at `http://localhost:3000`. The "Add / Edit Device" and "Polling
 Interval" panels talk to `config-api` at `http://localhost:8080` — hardcoded,

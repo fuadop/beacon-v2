@@ -1,0 +1,114 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: Downtime
+    folder: Operational-Alerts
+    disableProvenance: true
+    interval: 30s
+    rules:
+      - uid: aft8lqn0ae96of
+        title: Dead-Device
+        condition: C
+        # Fires when at least one credentialed device (snmp_version set --
+        # excludes never-probed/discovery-only rows like the auto-tracked
+        # gateway placeholder) is not "active" in config-api's own devices
+        # table -- the same status field config-watcher's health-check loop
+        # (ping + SNMP) keeps continuously accurate. See README's "Device
+        # health checking" section.
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: infinity
+            model:
+              columns: []
+              datasource:
+                type: yesoreyeram-infinity-datasource
+                uid: infinity
+              filterExpression: 'snmp_version != "" && status != "active"'
+              filters: []
+              format: table
+              global_query_id: ""
+              intervalMs: 1000
+              maxDataPoints: 43200
+              parser: backend
+              refId: A
+              root_selector: ""
+              source: url
+              summarizeBy: status
+              summarizeExpression: count(status)
+              type: json
+              url: http://config-api:8080/devices
+              url_options:
+                data: ""
+                method: GET
+          - refId: B
+            queryType: expression
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: []
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            queryType: expression
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: gte
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        noDataState: OK
+        execErrState: Alerting
+        for: 0s
+        keep_firing_for: 0s
+        annotations:
+          description: One or more devices are dead.
+          summary: Dead device(s).
+        isPaused: false
+        notification_settings:
+          receiver: Group-4

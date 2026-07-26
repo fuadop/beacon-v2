@@ -60,11 +60,21 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Reconcile once immediately on startup, then on every tick.
+	// Health-check once immediately so reconcile's first run (right below)
+	// already reflects current reachability, then reconcile once immediately
+	// on startup too. Both then continue on their own tick below.
+	checkDeviceHealth(logger, devices, key)
 	reconcileTelegrafConfig(logger, devices, settings, key, cfg)
 
 	reconcileTicker := time.NewTicker(time.Duration(pollSeconds) * time.Second)
 	defer reconcileTicker.Stop()
+
+	// Health-checking (ping + SNMP) shares the reconcile loop's cadence: it's
+	// the same "iterate devices, hit the network, update the DB" shape as
+	// reconcile already has, and reusing the interval keeps this to one knob
+	// (CONFIG_WATCHER_POLL_SECONDS) instead of two.
+	healthCheckTicker := time.NewTicker(time.Duration(pollSeconds) * time.Second)
+	defer healthCheckTicker.Stop()
 
 	// The routing-table sweep runs on its own, much slower cadence: it makes
 	// live SNMP walks against every active device, so ticking it as fast as the
@@ -79,6 +89,8 @@ func main() {
 			return
 		case <-reconcileTicker.C:
 			reconcileTelegrafConfig(logger, devices, settings, key, cfg)
+		case <-healthCheckTicker.C:
+			checkDeviceHealth(logger, devices, key)
 		case <-sweepTicker.C:
 			runDiscoverySweep(logger, devices, settings, key)
 		}

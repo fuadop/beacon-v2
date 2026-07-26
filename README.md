@@ -47,6 +47,25 @@ internet-facing deployment. Concretely:
   That's root-equivalent access to the whole Docker daemon on the host, scoped
   by convention (not enforcement) to that one action — don't add other
   responsibilities to that container without revisiting this.
+- **`config-watcher` runs as root** (its `alpine`-based image, unlike the
+  other Go services' `distroless` ones) so its health-check loop can open raw
+  ICMP sockets for ping — Docker grants `CAP_NET_RAW` to containers by default,
+  so this needs no extra `docker-compose.yml` configuration, but it's worth
+  knowing if you ever harden this stack's capability set.
+
+## Device health checking
+
+`config-watcher` pings and SNMP-probes every device with credentials on file
+on the same cadence as its config-reconcile loop (`CONFIG_WATCHER_POLL_SECONDS`,
+default 10s) and updates each device's `status` in SQLite to match reality —
+not just at creation/edit time like before. SNMP is authoritative for the
+stored status (that's what actually determines whether Telegraf can collect
+from it); ping runs too and is logged for diagnostics, but never overrides
+the SNMP result, since ICMP is commonly blocked by firewalls even when SNMP
+works fine. A device that goes from `active` to `failed` (or back) is
+automatically added to or dropped from `telegraf.conf` on the next reconcile,
+since that already only includes `active` devices — no manual intervention
+needed either direction.
 
 ## Running it
 

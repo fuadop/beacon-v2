@@ -37,6 +37,14 @@ services:
       - "3000:3000"
     environment:
       - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource,volkovlabs-form-panel,volkovlabs-table-panel
+      # Grafana only reads its own GF_SMTP_* env vars, not the generic SMTP_*
+      # names in .env -- this maps one to the other, same pattern as
+      # TELEGRAF_CONTAINER_NAME below. GF_SMTP_HOST wants "host:port" combined.
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=${SMTP_SERVER}:${SMTP_PORT}
+      - GF_SMTP_USER=${SMTP_USERNAME}
+      - GF_SMTP_PASSWORD=${SMTP_PASSWORD}
+      - GF_SMTP_FROM_ADDRESS=${SMTP_FROM_ADDRESS}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro

@@ -139,20 +139,27 @@ docker compose exec influxdb influxdb3 update database --database "$INFLUXDB_DAT
 ```
 
 Grafana is at `http://localhost:3000`. The "Add / Edit Device" and "Polling
-Interval" panels talk to `config-api` at `http://localhost:8080` — hardcoded,
-because your *browser* needs to reach that address directly, and there's no
-way to make it configurable via a dashboard variable (see below). This is
-separate from the Infinity/InfluxDB datasource wiring, which uses Docker's
-internal network, because Business Forms panels call `config-api` directly
-from your browser rather than through Grafana's backend.
+Interval" panels talk to `config-api` at `http://localhost:8080`, and the
+"Ask about your network" chatbot panel talks to `chat-api` at
+`http://localhost:8082` — all hardcoded, because your *browser* needs to
+reach those addresses directly, and there's no way to make them configurable
+via a dashboard variable (see below). This is separate from the
+Infinity/InfluxDB datasource wiring (the "Devices"/"Recent Traps" tables and
+every metrics chart), which is proxied server-side through Grafana's backend
+using Docker's internal network and needs no changes — only these three
+panels' own custom-code `fetch()` calls run in your browser.
 
 If Grafana isn't on the same machine as your browser (or you're not using the
-default port mapping), update the hardcoded `http://localhost:8080` yourself:
+default port mapping — see "Deploying on a remote server" below for the
+common case of this), update the hardcoded addresses yourself:
 - **Polling Interval**: open the panel → **Edit** → **Initial Request** and
   **Update Request** → change the **URL** field.
 - **Add / Edit Device**: this panel doesn't use a URL field at all (see
   below) — open the panel → **Edit** → **Update Request** → edit the
   `http://localhost:8080` strings directly inside the **Code** box.
+- **Ask about your network**: same as Add/Edit Device — open the panel →
+  **Edit** → **Update Request** → edit the `http://localhost:8082` string
+  inside the **Code** box.
 
 A dashboard variable would be the obvious way to make this configurable
 without hand-editing, but `volkovlabs-form-panel` v6.3.5 has a bug where it
@@ -192,6 +199,45 @@ Devices table picks up the change without a manual page reload.
 Type the device's ID into the same **Device ID** field, then click
 **Delete Device** (below Save Device). This asks for a native browser
 confirmation, then sends `DELETE /devices/{id}` and clears the form.
+
+## Deploying on a remote server
+
+If you run this on a cloud VM/VPS rather than your own laptop, keep two
+separate network paths straight — solving one doesn't solve the other:
+
+1. **The VM reaching your actual devices** (e.g. over a VPN back to your home
+   or campus network). Not covered here — this is just your VPN client
+   working correctly on the VM.
+2. **Your browser reaching the VM's services.** This is the one that breaks
+   silently: the metrics dashboards and the "Devices"/"Recent Traps" tables
+   all work fine no matter where your browser is (they're proxied
+   server-side by Grafana), but the three panels above run their `fetch()`
+   calls **in your browser**, hardcoded to `localhost`. Once Grafana isn't on
+   the same machine as your browser, `localhost` resolves to *your own
+   laptop*, not the VM, and those three panels fail outright.
+
+What you need to update, once you've decided how the VM is reachable:
+
+- [ ] **Add / Edit Device** panel's `http://localhost:8080` (Update Request code box)
+- [ ] **Polling Interval** panel's `http://localhost:8080` (Initial Request + Update Request URL fields)
+- [ ] **Ask about your network** panel's `http://localhost:8082` (Update Request code box)
+
+Replace each with whatever address your browser can actually reach that
+service at — this depends on how you expose the VM:
+
+- **Cloudflare Tunnel (recommended over opening ports directly).** Give
+  Grafana its own hostname, and give `config-api` and `chat-api` their own
+  hostnames too (a tunnel can route multiple public hostnames to different
+  internal ports) — then use those hostnames instead of `localhost` above.
+  Put **Cloudflare Access** (their free Zero Trust auth) in front of the
+  `config-api`/`chat-api` hostnames specifically: both have **no
+  authentication of their own** (see Threat Model above), so exposing them
+  publicly without something else guarding them means anyone who finds the
+  URL can read/edit/delete your devices or query your chatbot for free.
+- **A plain DNS A record + open ports.** Simpler, but this puts unauthenticated
+  `config-api`/`chat-api` directly on the public internet with nothing in
+  front of them — avoid this unless you add your own reverse proxy with auth,
+  or at minimum firewall rules restricting those ports to your own IP.
 
 ## Colima users: enable the gRPC port-forwarder
 

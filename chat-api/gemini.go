@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -151,7 +152,7 @@ func (c *geminiClient) call(contents []geminiContent, tools []geminiTool) (*gemi
 // answer or maxToolIterations is hit (a hard cost/runaway-loop cap, not
 // just a correctness detail -- every iteration is an API call, and while
 // Gemini's free tier has no per-call charge, it's still rate-limited).
-func runChat(client *geminiClient, tc toolContext, question string) (string, error) {
+func runChat(client *geminiClient, tc toolContext, question string, logger *slog.Logger) (string, error) {
 	contents := []geminiContent{
 		{Role: "user", Parts: []geminiPart{{Text: question}}},
 	}
@@ -181,6 +182,11 @@ func runChat(client *geminiClient, tc toolContext, question string) (string, err
 		var responseParts []geminiPart
 		for _, part := range functionCalls {
 			result, err := executeTool(tc, part.FunctionCall.Name, part.FunctionCall.Args)
+			if err != nil {
+				logger.Warn("tool call failed", "tool", part.FunctionCall.Name, "args", part.FunctionCall.Args, "error", err)
+			} else {
+				logger.Info("tool call succeeded", "tool", part.FunctionCall.Name, "args", part.FunctionCall.Args)
+			}
 			responseParts = append(responseParts, buildFunctionResponsePart(part.FunctionCall.Name, result, err))
 		}
 		contents = append(contents, geminiContent{Role: "function", Parts: responseParts})

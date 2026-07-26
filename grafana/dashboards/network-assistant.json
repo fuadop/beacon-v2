@@ -31,7 +31,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 16,
+        "h": 20,
         "w": 18,
         "x": 0,
         "y": 0
@@ -77,19 +77,39 @@
             "id": "answer",
             "labelWidth": 20,
             "section": "chat",
-            "title": "Answer",
+            "title": "Conversation",
             "tooltip": "",
-            "type": "string",
+            "type": "textarea",
             "uid": "answer",
             "unit": "",
             "value": "",
+            "width": null
+          },
+          {
+            "backgroundColor": "",
+            "buttonLabel": "Clear History",
+            "customCode": "if (!window.confirm('Clear chat history?')) {\n  return;\n}\nwindow.sessionStorage.removeItem('network-assistant-chat-history');\ncontext.panel.patchFormValue({ answer: '', question: '' });\ncontext.grafana.notifySuccess(['Cleared', 'Chat history cleared.']);\n",
+            "disabled": false,
+            "foregroundColor": "",
+            "icon": "trash-alt",
+            "id": "clear_history",
+            "labelWidth": 14,
+            "section": "chat",
+            "show": "form",
+            "size": "md",
+            "title": "",
+            "tooltip": "",
+            "type": "button",
+            "uid": "clear_history",
+            "unit": "",
+            "variant": "secondary",
             "width": null
           }
         ],
         "height": 0,
         "heightMode": "auto",
         "initial": {
-          "code": "context.panel.enableSubmit();",
+          "code": "context.panel.enableSubmit();\nfunction renderHistory(h) {\n  return h.map(function(e) {\n    return (e.role === 'user' ? 'You: ' : 'Assistant: ') + e.text;\n  }).join('\\n\\n');\n}\nfunction fixTranscriptDisplay() {\n  setTimeout(function() {\n    const el = document.querySelector('textarea');\n    if (el) {\n      el.style.height = '360px';\n      el.scrollTop = el.scrollHeight;\n    }\n  }, 0);\n}\ntry {\n  const raw = window.sessionStorage.getItem('network-assistant-chat-history');\n  const history = raw ? JSON.parse(raw) : [];\n  if (history.length > 0) {\n    context.panel.patchFormValue({ answer: renderHistory(history) });\n  }\n} catch (err) {\n  // malformed/inaccessible sessionStorage -- just start with an empty transcript\n}\nfixTranscriptDisplay();\n",
           "confirm": false,
           "contentType": "application/json",
           "datasource": "",
@@ -140,7 +160,7 @@
         },
         "sync": true,
         "update": {
-          "code": "const elements = context.panel.elements;\nconst question = elements.find((e) => e.id === 'question').value;\n\nif (!question) {\n  context.grafana.notifyError(['Error', 'Type a question first.']);\n  return;\n}\n\ncontext.panel.patchFormValue({ answer: 'Thinking...' });\n\nfetch('http://localhost:8082/chat', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ question }),\n})\n  .then(async (resp) => {\n    const body = await resp.json().catch(() => ({}));\n    if (resp.ok) {\n      context.panel.patchFormValue({ answer: body.answer || '(empty answer)' });\n    } else {\n      const msg = body.error || `HTTP ${resp.status}`;\n      context.panel.patchFormValue({ answer: `Error: ${msg}` });\n      context.grafana.notifyError(['Error', msg]);\n    }\n  })\n  .catch((err) => {\n    context.panel.patchFormValue({ answer: `Error: ${err}` });\n    context.grafana.notifyError(['Error', `Failed to reach chat-api: ${err}`]);\n  });\n",
+          "code": "const elements = context.panel.elements;\nconst question = elements.find((e) => e.id === 'question').value;\n\nif (!question) {\n  context.grafana.notifyError(['Error', 'Type a question first.']);\n  return;\n}\n\nfunction renderHistory(h) {\n  return h.map(function(e) {\n    return (e.role === 'user' ? 'You: ' : 'Assistant: ') + e.text;\n  }).join('\\n\\n');\n}\nfunction fixTranscriptDisplay() {\n  setTimeout(function() {\n    const el = document.querySelector('textarea');\n    if (el) {\n      el.style.height = '360px';\n      el.scrollTop = el.scrollHeight;\n    }\n  }, 0);\n}\n\nlet history = [];\ntry {\n  const raw = window.sessionStorage.getItem('network-assistant-chat-history');\n  history = raw ? JSON.parse(raw) : [];\n} catch (err) {\n  history = [];\n}\n\nhistory.push({ role: 'user', text: question });\nhistory.push({ role: 'assistant', text: 'Thinking...' });\nwindow.sessionStorage.setItem('network-assistant-chat-history', JSON.stringify(history));\ncontext.panel.patchFormValue({ answer: renderHistory(history), question: '' });\nfixTranscriptDisplay();\n\nfetch('http://localhost:8082/chat', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ question }),\n})\n  .then(async (resp) => {\n    const body = await resp.json().catch(() => ({}));\n    const answerText = resp.ok\n      ? (body.answer || '(empty answer)')\n      : `Error: ${body.error || 'HTTP ' + resp.status}`;\n    history[history.length - 1] = { role: 'assistant', text: answerText };\n    window.sessionStorage.setItem('network-assistant-chat-history', JSON.stringify(history));\n    context.panel.patchFormValue({ answer: renderHistory(history) });\n    fixTranscriptDisplay();\n    if (!resp.ok) {\n      context.grafana.notifyError(['Error', body.error || `HTTP ${resp.status}`]);\n    }\n  })\n  .catch((err) => {\n    history[history.length - 1] = { role: 'assistant', text: `Error: ${err}` };\n    window.sessionStorage.setItem('network-assistant-chat-history', JSON.stringify(history));\n    context.panel.patchFormValue({ answer: renderHistory(history) });\n    fixTranscriptDisplay();\n    context.grafana.notifyError(['Error', `Failed to reach chat-api: ${err}`]);\n  });\n",
           "confirm": false,
           "contentType": "application/json",
           "datasource": "",
@@ -173,7 +193,7 @@
         "uid": "grafana"
       },
       "gridPos": {
-        "h": 16,
+        "h": 20,
         "w": 6,
         "x": 18,
         "y": 0

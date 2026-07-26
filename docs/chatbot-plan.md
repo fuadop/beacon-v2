@@ -1,12 +1,14 @@
 # Plan: Network Posture Chatbot in Grafana
 
-Status: implemented (`chat-api` service + `grafana/dashboards/network-assistant.json`),
-using Google Gemini rather than Anthropic (switched after implementation --
-Anthropic's API requires prepaid credit, Gemini has a usable free tier).
-Requires `GEMINI_API_KEY` to be set in `.env` before `chat-api` will start --
-it fails fast rather than running without one. Verified end-to-end at the UI
-level (question submission, error handling, answer display); the actual
-LLM round trip has not yet been exercised with a real API key.
+Status: implemented and verified live (`chat-api` service +
+`grafana/dashboards/network-assistant.json`), using Google Gemini rather
+than Anthropic (switched after implementation -- Anthropic's API requires
+prepaid credit, Gemini has a usable free tier). Requires `GEMINI_API_KEY` to
+be set in `.env` before `chat-api` will start -- it fails fast rather than
+running without one. Verified end-to-end at the UI level (question
+submission, error handling, answer display) and with a real Gemini API key
+answering real questions against live data (cross-checked against direct
+SQL) through the actual Grafana panel in a browser.
 
 ## Goal
 

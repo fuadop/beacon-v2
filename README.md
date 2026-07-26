@@ -67,13 +67,48 @@ automatically added to or dropped from `telegraf.conf` on the next reconcile,
 since that already only includes `active` devices — no manual intervention
 needed either direction.
 
+## Alerting & email
+
+A `Dead-Device` alert rule (Grafana Alerting, `grafana/provisioning/alerting/`)
+is provisioned by default: it fires when any credentialed device's `status`
+isn't `active` — i.e. it's a direct consumer of the health-checking above.
+It's wired to an email contact point ("Group-4"), but two things you need to
+know before it'll actually deliver anything:
+
+1. **SMTP is off by default.** Set `SMTP_SERVER`/`SMTP_PORT`/`SMTP_USERNAME`/
+   `SMTP_PASSWORD`/`SMTP_FROM_ADDRESS` in `.env` (any standard SMTP relay
+   works — e.g. SMTP2GO, SendGrid, Gmail with an app password) and restart
+   Grafana. Leave them blank to keep alerting silent (the rule still evaluates
+   and shows up in Grafana's UI either way, it just won't email anyone).
+2. **The contact point's recipient addresses are hardcoded** in
+   `grafana/provisioning/alerting/contactpoints.yml` (real addresses from this
+   project's own development, not placeholders). If you deploy this somewhere
+   else and turn SMTP on, **edit that file first** — otherwise real alert
+   emails go to people who have nothing to do with your deployment.
+
+## Network Assistant (chatbot)
+
+A Grafana dashboard ("Network Assistant") backed by `chat-api` lets you ask
+plain-English questions about device posture ("what's the CPU usage of R1?",
+"how many times has R1 spiked in the past 6 hours?") — see
+`docs/chatbot-plan.md` for the design and its known limitations. Needs
+`GEMINI_API_KEY` (see "Running it" above); nothing else to configure.
+
 ## Running it
 
 ```
 cp .env.example .env
-# edit .env: set ENCRYPTION_KEY (openssl rand -hex 32), GF_SECURITY_ADMIN_PASSWORD
+# edit .env: set ENCRYPTION_KEY (openssl rand -hex 32), GF_SECURITY_ADMIN_PASSWORD,
+# and GEMINI_API_KEY (free tier: https://aistudio.google.com/apikey)
 docker compose up -d --build
 ```
+
+`GEMINI_API_KEY` powers `chat-api` (the "Network Assistant" chatbot dashboard,
+see below) — without it, `chat-api` isn't broken exactly, but it refuses to
+start and sits in an endless `restart: unless-stopped` loop. `docker compose
+up -d --build` will still exit 0 either way, so if you skip this, the only
+sign is `chat-api` cycling in `docker compose ps`; check `docker compose logs
+chat-api` if that happens.
 
 First boot: create an InfluxDB admin token and the metrics database, put the
 token in `.env` as `INFLUXDB_TOKEN`, then restart `config-watcher` and

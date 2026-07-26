@@ -1234,7 +1234,7 @@
             "uid": "influxdb"
           },
           "format": "table",
-          "rawSql": "SELECT time, hostname, \"ifDescr\", \"ifInOctets\", \"ifOutOctets\" FROM interface ORDER BY time DESC LIMIT 500",
+          "rawSql": "SELECT time, hostname, \"ifDescr\", \"ifInOctets\", \"ifOutOctets\" FROM interface WHERE $__timeFilter(time) ORDER BY time DESC LIMIT 500",
           "refId": "A"
         }
       ],

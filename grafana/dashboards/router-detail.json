@@ -126,7 +126,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "select time, cpu1min from cpu where agent_host = '$loopback' order by time desc",
+          "rawSql": "select time, cpu1min from cpu where agent_host = '$loopback' AND $__timeFilter(time) order by time desc",
           "refId": "A",
           "sql": {
             "columns": [
@@ -254,7 +254,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT time,\n  \"ciscoMemoryPoolUsed\" * 100.0 / (\"ciscoMemoryPoolUsed\" + \"ciscoMemoryPoolFree\") AS pct_used\nFROM memory\nWHERE \"ciscoMemoryPoolName\" = 'Processor'\nAND agent_host = '$loopback'\nORDER BY time DESC",
+          "rawSql": "SELECT time,\n  \"ciscoMemoryPoolUsed\" * 100.0 / (\"ciscoMemoryPoolUsed\" + \"ciscoMemoryPoolFree\") AS pct_used\nFROM memory\nWHERE \"ciscoMemoryPoolName\" = 'Processor'\nAND agent_host = '$loopback'\nAND $__timeFilter(time)\nORDER BY time DESC",
           "refId": "A",
           "sql": {
             "columns": [
@@ -400,7 +400,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  i.\"ifDescr\"     AS `Interface`,\n  first_value(i.\"ifOperStatus\" order by i.time desc)  AS `Status`,   -- 1=up, 2=down\n  first_value(i.\"ifAdminStatus\" order by i.time desc) AS `Admin Status`,  -- 1=up, 2=down (administratively)\n  first_value(i.\"ifPhysAddress\" order by i.time desc) AS `MAC Address`,\n  first_value(ip.\"ipAdEntAddr\" order by i.time desc)  AS `IP Address`,\n  first_value(ip.\"ipAdEntNetMask\" order by i.time desc) AS `Subnet Mask`\nFROM interface i\nLEFT JOIN \"ipAddr\" ip\n  ON i.hostname = ip.hostname AND i.\"ifIndex\" = ip.\"ipAdEntIfIndex\"\nWHERE i.agent_host = '$loopback'\ngroup by i.\"ifDescr\"\norder by i.\"ifDescr\" asc",
+          "rawSql": "SELECT\n  i.\"ifDescr\"     AS `Interface`,\n  first_value(i.\"ifOperStatus\" order by i.time desc)  AS `Status`,   -- 1=up, 2=down\n  first_value(i.\"ifAdminStatus\" order by i.time desc) AS `Admin Status`,  -- 1=up, 2=down (administratively)\n  first_value(i.\"ifPhysAddress\" order by i.time desc) AS `MAC Address`,\n  first_value(ip.\"ipAdEntAddr\" order by i.time desc)  AS `IP Address`,\n  first_value(ip.\"ipAdEntNetMask\" order by i.time desc) AS `Subnet Mask`\nFROM interface i\nLEFT JOIN \"ipAddr\" ip\n  ON i.hostname = ip.hostname AND i.\"ifIndex\" = ip.\"ipAdEntIfIndex\" AND $__timeFilter(ip.time)\nWHERE i.agent_host = '$loopback'\nAND $__timeFilter(i.time)\ngroup by i.\"ifDescr\"\norder by i.\"ifDescr\" asc",
           "refId": "A",
           "sql": {
             "columns": [
@@ -428,7 +428,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH deltas AS (\n  SELECT\n    agent_host, \"ifDescr\", \"ifIndex\", time, \"ifSpeed\",\n    \"ifInOctets\"  - LAG(\"ifInOctets\")  OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time) AS in_delta,\n    \"ifOutOctets\" - LAG(\"ifOutOctets\") OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time) AS out_delta,\n    EXTRACT(EPOCH FROM (time - LAG(time) OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time))) AS delta_secs\n  FROM interface\n  WHERE agent_host = '$loopback'\n),\nrates AS (\n  SELECT\n    agent_host, \"ifDescr\", \"ifIndex\", time, \"ifSpeed\",\n    (CASE WHEN in_delta  < 0 THEN in_delta  + 4294967296 ELSE in_delta  END) * 8.0 / delta_secs AS inbound_bps,\n    (CASE WHEN out_delta < 0 THEN out_delta + 4294967296 ELSE out_delta END) * 8.0 / delta_secs AS outbound_bps\n  FROM deltas\n  WHERE in_delta IS NOT NULL AND delta_secs > 0\n)\nSELECT DISTINCT ON (\"ifIndex\")\n  \"ifDescr\" as \"Interface\",\n  ROUND(inbound_bps / 1e6, 4)  AS \"Inbound Throughput (Mbps)\",\n  ROUND(outbound_bps / 1e6, 4) AS \"Outbound Throughput (Mbps)\",\n  CASE WHEN \"ifSpeed\" > 0 AND \"ifSpeed\" < 4294967295\n       THEN ROUND((inbound_bps + outbound_bps) * 100.0 / \"ifSpeed\", 4)\n       ELSE NULL END AS \"Total Utilization (%)\"\nFROM rates\nORDER BY \"ifIndex\", time DESC;",
+          "rawSql": "WITH deltas AS (\n  SELECT\n    agent_host, \"ifDescr\", \"ifIndex\", time, \"ifSpeed\",\n    \"ifInOctets\"  - LAG(\"ifInOctets\")  OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time) AS in_delta,\n    \"ifOutOctets\" - LAG(\"ifOutOctets\") OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time) AS out_delta,\n    EXTRACT(EPOCH FROM (time - LAG(time) OVER (PARTITION BY agent_host, \"ifIndex\" ORDER BY time))) AS delta_secs\n  FROM interface\n  WHERE agent_host = '$loopback'\n  AND $__timeFilter(time)\n),\nrates AS (\n  SELECT\n    agent_host, \"ifDescr\", \"ifIndex\", time, \"ifSpeed\",\n    (CASE WHEN in_delta  < 0 THEN in_delta  + 4294967296 ELSE in_delta  END) * 8.0 / delta_secs AS inbound_bps,\n    (CASE WHEN out_delta < 0 THEN out_delta + 4294967296 ELSE out_delta END) * 8.0 / delta_secs AS outbound_bps\n  FROM deltas\n  WHERE in_delta IS NOT NULL AND delta_secs > 0\n)\nSELECT DISTINCT ON (\"ifIndex\")\n  \"ifDescr\" as \"Interface\",\n  ROUND(inbound_bps / 1e6, 4)  AS \"Inbound Throughput (Mbps)\",\n  ROUND(outbound_bps / 1e6, 4) AS \"Outbound Throughput (Mbps)\",\n  CASE WHEN \"ifSpeed\" > 0 AND \"ifSpeed\" < 4294967295\n       THEN ROUND((inbound_bps + outbound_bps) * 100.0 / \"ifSpeed\", 4)\n       ELSE NULL END AS \"Total Utilization (%)\"\nFROM rates\nORDER BY \"ifIndex\", time DESC;",
           "refId": "B",
           "sql": {
             "columns": [

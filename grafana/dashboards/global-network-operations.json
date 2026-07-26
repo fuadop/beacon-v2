@@ -313,7 +313,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "WITH deltas AS (\n  SELECT\n    hostname, \"ifIndex\", time,\n    \"ifInOctets\"  - LAG(\"ifInOctets\")  OVER (PARTITION BY hostname, \"ifIndex\" ORDER BY time) AS in_delta,\n    \"ifOutOctets\" - LAG(\"ifOutOctets\") OVER (PARTITION BY hostname, \"ifIndex\" ORDER BY time) AS out_delta\n  FROM interface\n)\nSELECT\n  date_bin(INTERVAL '1 minute', time) AS minute,\n  SUM(CASE WHEN in_delta  < 0 THEN in_delta  + 4294967296 ELSE in_delta  END) AS total_in_bytes,\n  SUM(CASE WHEN out_delta < 0 THEN out_delta + 4294967296 ELSE out_delta END) AS total_out_bytes\nFROM deltas\nWHERE time >= now() - INTERVAL '1 hour'\n  AND in_delta IS NOT NULL\nGROUP BY minute\nORDER BY minute;",
+          "rawSql": "WITH deltas AS (\n  SELECT\n    hostname, \"ifIndex\", time,\n    \"ifInOctets\"  - LAG(\"ifInOctets\")  OVER (PARTITION BY hostname, \"ifIndex\" ORDER BY time) AS in_delta,\n    \"ifOutOctets\" - LAG(\"ifOutOctets\") OVER (PARTITION BY hostname, \"ifIndex\" ORDER BY time) AS out_delta\n  FROM interface\n  WHERE time >= now() - INTERVAL '2 hours'\n)\nSELECT\n  date_bin(INTERVAL '1 minute', time) AS minute,\n  SUM(CASE WHEN in_delta  < 0 THEN in_delta  + 4294967296 ELSE in_delta  END) AS total_in_bytes,\n  SUM(CASE WHEN out_delta < 0 THEN out_delta + 4294967296 ELSE out_delta END) AS total_out_bytes\nFROM deltas\nWHERE time >= now() - INTERVAL '1 hour'\n  AND in_delta IS NOT NULL\nGROUP BY minute\nORDER BY minute;",
           "refId": "A",
           "sql": {
             "columns": [
@@ -537,7 +537,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "with inventory as (\n  select\n    first_value(hostname) as `Hostname`,\n    first_value(agent_host) as `IP Address`,\n    first_value(uptime order by time desc) as `UptimeMs` \n  from snmp group by agent_host\n),\nlatest_cpu as (\n  SELECT agent_host, first_value(cpu.cpu1min order by time desc) as cpu_utilization\n  from cpu group by agent_host\n)\nselect\n  'ONLINE' as `Status`,\n  `Hostname`, \n  `IP Address`,\n  concat(latest_cpu.cpu_utilization, '%') as `CPU`,\n  concat(\n    cast(((`UptimeMs` * 0.01) / 86400) as int),\n    'd ',\n    cast((((`UptimeMs` * 0.01) % 86400) / 3600) as int),\n    'h'\n  ) as `Uptime`\nfrom inventory\nleft join latest_cpu on latest_cpu.agent_host = inventory.`IP Address`\n\n",
+          "rawSql": "with inventory as (\n  select\n    first_value(hostname) as `Hostname`,\n    first_value(agent_host) as `IP Address`,\n    first_value(uptime order by time desc) as `UptimeMs` \n  from snmp WHERE $__timeFilter(time) group by agent_host\n),\nlatest_cpu as (\n  SELECT agent_host, first_value(cpu.cpu1min order by time desc) as cpu_utilization\n  from cpu WHERE $__timeFilter(time) group by agent_host\n)\nselect\n  'ONLINE' as `Status`,\n  `Hostname`, \n  `IP Address`,\n  concat(latest_cpu.cpu_utilization, '%') as `CPU`,\n  concat(\n    cast(((`UptimeMs` * 0.01) / 86400) as int),\n    'd ',\n    cast((((`UptimeMs` * 0.01) % 86400) / 3600) as int),\n    'h'\n  ) as `Uptime`\nfrom inventory\nleft join latest_cpu on latest_cpu.agent_host = inventory.`IP Address`\n",
           "refId": "A",
           "sql": {
             "columns": [
@@ -598,7 +598,8 @@
           "url_options": {
             "data": "",
             "method": "GET"
-          }
+          },
+          "rawSql": "with inventory as (\n  select\n    first_value(hostname) as `Hostname`,\n    first_value(agent_host) as `IP Address`,\n    first_value(uptime order by time desc) as `UptimeMs` \n  from snmp WHERE $__timeFilter(time) group by agent_host\n),\nlatest_cpu as (\n  SELECT agent_host, first_value(cpu.cpu1min order by time desc) as cpu_utilization\n  from cpu WHERE $__timeFilter(time) group by agent_host\n)\nselect\n  'ONLINE' as `Status`,\n  `Hostname`, \n  `IP Address`,\n  concat(latest_cpu.cpu_utilization, '%') as `CPU`,\n  concat(\n    cast(((`UptimeMs` * 0.01) / 86400) as int),\n    'd ',\n    cast((((`UptimeMs` * 0.01) % 86400) / 3600) as int),\n    'h'\n  ) as `Uptime`\nfrom inventory\nleft join latest_cpu on latest_cpu.agent_host = inventory.`IP Address`\n"
         }
       ],
       "title": "Monitored Infrastructure Inventory",

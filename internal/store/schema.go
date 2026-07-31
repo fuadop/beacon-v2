@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -44,6 +45,8 @@ CREATE TABLE IF NOT EXISTS traps (
   source_ip TEXT NOT NULL,
   oid TEXT,
   payload TEXT,
+  community TEXT,
+  agent_address TEXT,
   received_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 `
@@ -72,6 +75,19 @@ func OpenTrapsDB(path string) (*sql.DB, error) {
 	if _, err := db.Exec(trapsSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("store: applying traps schema: %w", err)
+	}
+	// CREATE TABLE IF NOT EXISTS doesn't retroactively add columns to a traps
+	// table that already existed before community/agent_address were introduced --
+	// add them here, ignoring the "duplicate column" error on databases that
+	// already have them (via trapsSchema above, on a fresh DB).
+	for _, stmt := range []string{
+		`ALTER TABLE traps ADD COLUMN community TEXT`,
+		`ALTER TABLE traps ADD COLUMN agent_address TEXT`,
+	} {
+		if _, err := db.Exec(stmt); err != nil && !strings.Contains(err.Error(), "duplicate column name") {
+			db.Close()
+			return nil, fmt.Errorf("store: migrating traps schema: %w", err)
+		}
 	}
 	return db, nil
 }

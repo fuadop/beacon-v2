@@ -393,16 +393,26 @@
               "selector": "OID",
               "text": "oid",
               "type": "string"
+            },
+            {
+              "selector": "Device",
+              "text": "device",
+              "type": "string"
+            },
+            {
+              "selector": "Interface",
+              "text": "interface",
+              "type": "string"
             }
           ],
           "computed_columns": [
             {
-              "selector": "\"warn\"",
+              "selector": "name == \"LinkDown\" || name == \"AuthenticationFailure\" ? \"warn\" : \"info\"",
               "text": "level",
               "type": "string"
             },
             {
-              "selector": "\"[\" + source_ip + \"] \" + oid + \" (\" + name + \")\"",
+              "selector": "\"[\" + (device == \"\" ? source_ip : device) + \"] \" + (interface == \"\" ? name : interface + \": \" + name)",
               "text": "body",
               "type": "string"
             }
@@ -426,7 +436,7 @@
           }
         }
       ],
-      "title": "Alerts",
+      "title": "Traps",
       "transformations": [
         {
           "id": "filterFieldsByName",
@@ -439,7 +449,9 @@
                 "body",
                 "name",
                 "oid",
-                "source_ip"
+                "source_ip",
+                "device",
+                "interface"
               ]
             }
           }
@@ -453,7 +465,9 @@
               "body": 2,
               "id": 0,
               "level": 3,
-              "timestamp": 1
+              "timestamp": 1,
+              "device": 4,
+              "interface": 5
             },
             "renameByName": {}
           }

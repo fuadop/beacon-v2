@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net"
 	"strings"
@@ -42,21 +43,50 @@ func newTrapHandler(logger *slog.Logger, traps *store.TrapStore) gosnmp.TrapHand
 			SourceIP: addr.IP.String(),
 			OID:      oid,
 			Payload:  payload,
+			// Community is on every v1/v2c packet, but only v1 also carries
+			// AgentAddress -- the sending device's own real IP, embedded in the
+			// PDU itself rather than the UDP header, which is what lets
+			// config-api attribute a trap correctly even when something between
+			// the device and here (Docker's own port-publishing, in this
+			// deployment's case) rewrites the packet's actual source IP.
+			Community: packet.Community,
+		}
+		if packet.Version == gosnmp.Version1 {
+			t.AgentAddress = packet.AgentAddress
 		}
 		if _, err := traps.Insert(t); err != nil {
 			logger.Error("storing trap", "error", err, "source", addr.IP.String())
 			return
 		}
-		logger.Info("received trap", "source", addr.IP.String(), "oid", oid)
+		logger.Info("received trap", "source", addr.IP.String(), "oid", oid, "agent_address", t.AgentAddress)
 	}
 }
 
-// extractTrapOID finds the trap's identifying OID: for v1 traps that's the
-// enterprise OID carried in the packet header, for v2c/v3 it's the value of the
-// snmpTrapOID.0 varbind.
+// genericTrapOID maps SNMPv1's generic-trap integer (0-5; RFC 1157) to the same
+// specific SNMPv2-MIB OID a v2c/v3 device would send for the same event --
+// keeping v1 traps identifiable by internal/snmp.TrapName the same way v2c/v3
+// ones are, rather than collapsing every v1 trap to the bare enterprise OID.
+var genericTrapOID = map[int]string{
+	0: ".1.3.6.1.6.3.1.1.5.1", // coldStart
+	1: ".1.3.6.1.6.3.1.1.5.2", // warmStart
+	2: ".1.3.6.1.6.3.1.1.5.3", // linkDown
+	3: ".1.3.6.1.6.3.1.1.5.4", // linkUp
+	4: ".1.3.6.1.6.3.1.1.5.5", // authenticationFailure
+	5: ".1.3.6.1.6.3.1.1.5.6", // egpNeighborLoss
+}
+
+// extractTrapOID finds the trap's identifying OID. For v2c/v3 that's the value
+// of the snmpTrapOID.0 varbind. v1 has no such varbind -- the generic-trap
+// integer identifies one of the six standard types above, or 6
+// ("enterpriseSpecific") meaning the real identity is the vendor's own
+// enterprise OID plus its specific-trap number (e.g. a Cisco ASA's traps).
 func extractTrapOID(packet *gosnmp.SnmpPacket) string {
 	if packet.Version == gosnmp.Version1 {
-		return strings.TrimSuffix(packet.Enterprise, ".")
+		if oid, ok := genericTrapOID[packet.GenericTrap]; ok {
+			return oid
+		}
+		enterprise := strings.TrimSuffix(packet.Enterprise, ".")
+		return fmt.Sprintf("%s.%d", enterprise, packet.SpecificTrap)
 	}
 	for _, v := range packet.Variables {
 		if v.Name == snmpTrapOID {

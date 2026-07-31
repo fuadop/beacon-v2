@@ -37,7 +37,7 @@ func main() {
 
 	deviceHandler := &handlers.DeviceHandler{Store: store.NewDeviceStore(db), Key: key}
 	settingsHandler := &handlers.SettingsHandler{Store: store.NewSettingsStore(db)}
-	trapsHandler := &handlers.TrapsHandler{Store: store.NewTrapStore(trapsDB)}
+	trapsHandler := &handlers.TrapsHandler{Store: store.NewTrapStore(trapsDB), Devices: store.NewDeviceStore(db), Key: key}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {

@@ -38,8 +38,17 @@ groups:
               refId: A
               root_selector: ""
               source: url
-              summarizeBy: status
-              summarizeExpression: count(status)
+              # No summarizeBy/summarizeExpression: the old grouping (by status
+              # alone) collapsed every dead device into a single count with no
+              # way to say *which* device in the alert. Infinity's summarizeBy
+              # only accepts a single field name (confirmed live -- a
+              # comma-separated "hostname,status" errors with "field not
+              # found" every evaluation cycle, though it degrades to
+              # unsummarized data and still fires). Leaving it unset from the
+              # start gives the same raw per-device rows without the repeated
+              # query error: each row (already filtered to non-active devices
+              # above) becomes its own alert instance, with hostname/status
+              # available as {{ $labels.* }} in the notification template.
               type: json
               url: http://config-api:8080/devices
               url_options:
@@ -107,8 +116,8 @@ groups:
         for: 0s
         keep_firing_for: 0s
         annotations:
-          description: One or more devices are dead.
-          summary: Dead device(s).
+          description: 'Device {{ $labels.hostname }} is {{ $labels.status }}.'
+          summary: 'Dead device: {{ $labels.hostname }} ({{ $labels.status }})'
         isPaused: false
         notification_settings:
           receiver: Group-4

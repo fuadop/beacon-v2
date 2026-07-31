@@ -76,10 +76,57 @@ func TestTrapHandlerStoresV1Trap(t *testing.T) {
 	handler := newTrapHandler(testLogger(), traps)
 
 	packet := &gosnmp.SnmpPacket{
-		Version: gosnmp.Version1,
+		Version:   gosnmp.Version1,
+		Community: "R1_Library_NETTMU",
 		SnmpTrap: gosnmp.SnmpTrap{
 			Enterprise:   ".1.3.6.1.4.1.9",
-			GenericTrap:  3,
+			GenericTrap:  3, // linkUp -- one of the six standard RFC 1157 types
+			SpecificTrap: 0,
+			AgentAddress: "172.16.154.69",
+		},
+	}
+	addr := &net.UDPAddr{IP: net.ParseIP("10.0.0.1")}
+
+	handler(packet, addr)
+
+	stored, err := traps.List(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored) != 1 {
+		t.Fatalf("expected 1 stored trap, got %d", len(stored))
+	}
+	got := stored[0]
+	// A standard generic-trap type (linkUp) should map to the same specific OID
+	// a v2c/v3 device would send for the same event, not the bare enterprise OID --
+	// otherwise internal/snmp.TrapName can't tell v1's LinkDown/LinkUp apart.
+	if got.OID != ".1.3.6.1.6.3.1.1.5.4" {
+		t.Errorf("expected linkUp OID .1.3.6.1.6.3.1.1.5.4, got %q", got.OID)
+	}
+	// AgentAddress/Community are v1-only and carried inside the SNMP payload
+	// itself, so they should be captured regardless of what the outer UDP
+	// packet's own source IP says.
+	if got.AgentAddress != "172.16.154.69" {
+		t.Errorf("expected agent_address 172.16.154.69, got %q", got.AgentAddress)
+	}
+	if got.Community != "R1_Library_NETTMU" {
+		t.Errorf("expected community R1_Library_NETTMU, got %q", got.Community)
+	}
+}
+
+func TestTrapHandlerStoresV1EnterpriseSpecificTrap(t *testing.T) {
+	traps := newTestTrapStore(t)
+	handler := newTrapHandler(testLogger(), traps)
+
+	// generic-trap 6 ("enterpriseSpecific") means the real identity is the
+	// vendor's own enterprise OID + specific-trap number, not one of the six
+	// standard types -- matches what a Cisco ASA sends (confirmed live: enterprise
+	// .1.3.6.1.4.1.9.1.1902 for a linkDown/linkUp interface event).
+	packet := &gosnmp.SnmpPacket{
+		Version: gosnmp.Version1,
+		SnmpTrap: gosnmp.SnmpTrap{
+			Enterprise:   ".1.3.6.1.4.1.9.1.1902",
+			GenericTrap:  6,
 			SpecificTrap: 0,
 		},
 	}
@@ -94,8 +141,8 @@ func TestTrapHandlerStoresV1Trap(t *testing.T) {
 	if len(stored) != 1 {
 		t.Fatalf("expected 1 stored trap, got %d", len(stored))
 	}
-	if stored[0].OID != ".1.3.6.1.4.1.9" {
-		t.Errorf("expected enterprise OID as trap oid, got %q", stored[0].OID)
+	if stored[0].OID != ".1.3.6.1.4.1.9.1.1902.0" {
+		t.Errorf("expected enterprise+specific-trap OID, got %q", stored[0].OID)
 	}
 }
 
